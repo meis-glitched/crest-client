@@ -87,8 +87,13 @@ public final class CrestSkinUtil {
             if (texture instanceof DynamicTexture) {
                 try {
                     NativeImage img = ((DynamicTexture) texture).getPixels();
-                    if (img != null && (Object) img instanceof NativeImageAccessor ac && ac.skinlayers$isAllocated()) {
-                        return img;
+                    if (img != null && img.getWidth() > 0 && img.getHeight() > 0) {
+                        NativeImage copy = new NativeImage(img.getWidth(), img.getHeight(), false);
+                        copy.copyFrom(img);
+                        if (allocated != null) {
+                            allocated[0] = true;
+                        }
+                        return copy;
                     }
                 } catch (Exception ex) {
                     // not backed by an image
@@ -115,6 +120,12 @@ public final class CrestSkinUtil {
         float bodyThickness = com.crest.client.core.SkinLayers3dModule.getBodyThickness();
         float armsThickness = com.crest.client.core.SkinLayers3dModule.getArmsThickness();
         float legsThickness = com.crest.client.core.SkinLayers3dModule.getLegsThickness();
+        // Keep voxel depth proportional with the clamped scaling used by
+        // CrestSkinConfig.refresh() so a maxed slider doesn't inflate the mesh.
+        headThickness = clamp(headThickness, 0f, 0.4f);
+        bodyThickness = clamp(bodyThickness, 0f, 0.5f);
+        armsThickness = clamp(armsThickness, 0f, 0.3f);
+        legsThickness = clamp(legsThickness, 0f, 0.3f);
         
         // Check if thickness values changed - if so, invalidate cache
         ThicknessCache cached = thicknessCache.get(abstractClientPlayerEntity);
@@ -164,6 +175,10 @@ public final class CrestSkinUtil {
                 skin.close();
             }
         }
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return value < min ? min : Math.min(value, max);
     }
 
 }

@@ -1,7 +1,9 @@
 package com.crest.client.music;
 
+import com.crest.client.core.NotificationToast;
 import com.crest.client.core.event.TickEvent;
 import com.crest.client.core.CrestModules;
+import com.crest.client.ui.Theme;
 import net.minecraft.client.Minecraft;
 
 import java.util.function.Consumer;
@@ -39,15 +41,20 @@ public class MusicModule {
                 + " - " + (info.author != null ? info.author : "Unknown");
             String msg = "Playing: " + label;
             System.out.println("[Crest Music] " + msg);
+
+            // Now-playing notification (toast/chat/off). onTrackStart fires from
+            // the Lavaplayer audio thread, so any state-touching dispatch must be
+            // pushed onto the render thread via mc.execute.
+            final String shortLabel = label;
             Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                String finalMsg = msg;
-                mc.execute(() -> {
-                    mc.player.sendSystemMessage(
-                        net.minecraft.network.chat.Component.literal("[" + finalMsg + "]")
-                    );
-                });
+            int mode = MusicPlayerPrefs.get().getNotifyMode();
+            if (mode == 0) {
+                mc.execute(() -> NotificationToast.show("♫ " + shortLabel, Theme.getAnimatedAccent()));
+            } else if (mode == 1 && mc.player != null) {
+                mc.execute(() -> mc.player.sendSystemMessage(
+                    net.minecraft.network.chat.Component.literal("[" + msg + "]")));
             }
+
             MusicScreen screen = currentScreen();
             if (screen != null) screen.setStatus(msg);
         });

@@ -2,6 +2,7 @@ package com.crest.client.cosmetics;
 
 import com.crest.client.cosmetics.ui.SkinCard;
 import com.crest.client.cosmetics.ui.CapeCard;
+import com.crest.client.core.ScreenAnim;
 import com.crest.client.core.SkinChanger;
 import com.crest.client.ui.*;
 import net.minecraft.client.Minecraft;
@@ -26,7 +27,7 @@ public class CosmeticsHubScreen extends Screen {
     
     private final ModelViewer3D modelViewer = new ModelViewer3D();
     private final ScrollContainer scrollContainer = new ScrollContainer();
-    private final Animated openAnim = new Animated(0f, 10f);
+    private final ScreenAnim anim = new ScreenAnim();
     private final SearchBar searchBar;
     
     private int mx, my;
@@ -45,8 +46,7 @@ public class CosmeticsHubScreen extends Screen {
         super(Component.literal("Cosmetics"));
         this.parent = parent;
         this.searchBar = new SearchBar(this::onSearch, "Search cosmetics...");
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
     }
     
     @Override
@@ -466,12 +466,11 @@ public class CosmeticsHubScreen extends Screen {
         this.mx = mx;
         this.my = my;
         Theme.tick(delta);
-        openAnim.tick(delta);
+        anim.update(delta);
         
-        float open = openAnim.get();
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, (int)(Theme.glassOpacity * open)));
+        anim.backdrop(g, width, height);
         
-        int wy = (int)((1 - open) * 16);
+        int wy = anim.slideY(16);
         g.pose().pushMatrix();
         g.pose().translate(0, wy);
         
@@ -663,7 +662,7 @@ public class CosmeticsHubScreen extends Screen {
     
     @Override
     public void onClose() {
-        minecraft.setScreen(parent);
+        anim.closeTo(parent);
     }
     
     @Override

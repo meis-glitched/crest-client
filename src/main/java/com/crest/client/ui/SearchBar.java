@@ -25,6 +25,13 @@ public class SearchBar implements Widget {
 
     public String getText() { return text; }
 
+    /** Advance time-based state (cursor blink). Call once per frame with real dt. */
+    public void tick(float delta) {
+        cursorTimer += delta;
+    }
+
+    public boolean isFocused() { return focused; }
+
     public void setText(String text) {
         this.text = text;
     }
@@ -44,7 +51,6 @@ public class SearchBar implements Widget {
     @Override
     public void render(GuiGraphicsExtractor g, Font font, int x, int y, int w, int mx, int my, float delta) {
         lastX = x; lastY = y; lastW = w;
-        cursorTimer += delta;
 
         int sbH = getHeight();
         g.fill(x, y, x + w, y + sbH, ColorUtil.withAlpha(Theme.SIDEBAR_BG, focused ? 230 : 190));

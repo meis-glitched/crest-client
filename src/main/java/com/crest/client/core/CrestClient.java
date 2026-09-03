@@ -1,6 +1,10 @@
 package com.crest.client.core;
 
 import com.crest.client.core.SkinChanger;
+import com.crest.client.core.concurrent.CrestExecutors;
+import com.crest.client.core.logging.CrestLogger;
+import com.crest.client.core.logging.LoggerFactory;
+import com.crest.client.core.network.HttpClient;
 import com.crest.client.catstrokes.CatStrokesModule;
 import com.crest.client.core.event.TickEvent;
 import com.crest.client.music.MusicModule;
@@ -23,10 +27,18 @@ import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 public class CrestClient implements ClientModInitializer {
+    private static final CrestLogger LOGGER = LoggerFactory.getLogger("CrestClient");
     private static final Identifier HUD_LAYER = Identifier.fromNamespaceAndPath("crest-client", "hud_renderer");
 
     @Override
     public void onInitializeClient() {
+        LOGGER.info("Initializing Crest Client...");
+        
+        // Initialize core infrastructure
+        CrestExecutors.initialize();
+        HttpClient.initialize();
+        LOGGER.info("Core infrastructure initialized");
+        
         CrestModules.init();
         CrestBrandManager.init();
 
@@ -149,9 +161,14 @@ public class CrestClient implements ClientModInitializer {
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            LOGGER.info("Shutting down Crest Client...");
             CrestModules.getConfigManager().save();
             HudSettings.save();
             MusicModule.saveNow();
+            
+            // Shutdown thread pools gracefully
+            CrestExecutors.shutdown();
+            LOGGER.info("Crest Client shutdown complete");
         });
 
         HudElementRegistry.attachElementBefore(
@@ -217,8 +234,7 @@ public class CrestClient implements ClientModInitializer {
                 }
             } catch (Exception e) {
                 String id = renderable instanceof CrestModule cm ? cm.getId() : renderable.getClass().getSimpleName();
-                System.err.println("[Crest] HUD render error in '" + id + "', disabling: " + e);
-                e.printStackTrace();
+                LOGGER.error("HUD render error in '{}', disabling module", e, id);
                 CrestModules.setEnabled(id, false);
                 if (mc.player != null) {
                     mc.player.sendSystemMessage(

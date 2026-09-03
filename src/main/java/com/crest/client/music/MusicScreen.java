@@ -1,6 +1,7 @@
 package com.crest.client.music;
 
 import com.crest.client.ui.*;
+import com.crest.client.core.ScreenAnim;
 import com.crest.client.core.TextCapturingScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -48,8 +49,7 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
     private int queueRowH = 22;
     private int queueRows;
 
-    private final Animated openAnim = new Animated(0f, 12f);
-    private boolean closing = false;
+    private final ScreenAnim anim = new ScreenAnim();
 
     // Eased visual values
     private final Animated progressAnim = new Animated(0f, 12f);
@@ -66,8 +66,8 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
     private int nowPlayingBarX, nowPlayingBarW, nowPlayingBarY;
     private int shuffleBtnX, shuffleBtnY, shuffleBtnW, shuffleBtnH;
     private int toggChipY, toggChipH;
-    private final int[] toggChipX = new int[3];
-    private final int[] toggChipW = new int[3];
+    private final int[] toggChipX = new int[4];
+    private final int[] toggChipW = new int[4];
     private int duckBarX, duckBarW, duckBarY;
     private int libSetY, libSetH, libLoadY, libLoadH;
 
@@ -79,8 +79,7 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
         super(Component.literal("Crest Music"));
         this.player = player;
         this.backScreen = backScreen;
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
         volumeAnim.setImmediate(player.getSliderVolume() / 100f);
     }
 
@@ -220,16 +219,16 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         Theme.tick(delta);
-        openAnim.tick(delta);
-        float open = openAnim.get();
-        if (open < 0.01f && !closing) return;
+        anim.update(delta);
+        float open = anim.t();
+        if (open < 0.01f && !anim.isClosing()) return;
 
         L l = L.build(width, height);
         int accent = Theme.getAnimatedAccent();
 
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, (int) (Theme.glassOpacity * open)));
+        anim.backdrop(g, width, height);
 
-        int wy = (int) ((1 - open) * -12);
+        int wy = anim.slideY(-12);
         g.pose().pushMatrix();
         g.pose().translate(0, wy);
 
@@ -301,11 +300,11 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
         drawActionButton(g, l.setX, l.setY, l.setW, l.setH, "Set", "library_set", mx, my, false, delta);
 
         // Row B: behavior chips + duck level slider.
-        String[] labels = {" Pause with game ", " Duck on pause ", " Restore queue "};
-        boolean[] active = {prefs.isPauseWithGame(), prefs.isDucking(), prefs.isRestoreQueue()};
+        String[] labels = {" Pause with game ", " Duck on pause ", " Restore queue ", notifyLabel(prefs.getNotifyMode())};
+        boolean[] active = {prefs.isPauseWithGame(), prefs.isDucking(), prefs.isRestoreQueue(), false};
         int cx = l.libX;
         toggChipY = l.libRowB; toggChipH = BTN_H;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             int cw = font.width(labels[i]) + 16;
             toggChipX[i] = cx; toggChipW[i] = cw;
             drawToggleChip(g, cx, toggChipY, cw, toggChipH, labels[i], active[i], accent, mx, my, "chip" + i, delta);
@@ -708,7 +707,7 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
         if (mx >= l.loadX && mx <= l.loadX + l.loadW && my >= libLoadY && my <= libLoadY + libLoadH) {
             UiSounds.click(); loadLibraryAction(); return true;
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             if (toggChipW[i] > 0 && mx >= toggChipX[i] && mx <= toggChipX[i] + toggChipW[i]
                 && my >= toggChipY && my <= toggChipY + toggChipH) {
                 UiSounds.click();
@@ -717,6 +716,7 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
                     case 0 -> { p.setPauseWithGame(!p.isPauseWithGame()); setStatus("Pause with game: " + p.isPauseWithGame()); }
                     case 1 -> { p.setDucking(!p.isDucking()); setStatus("Duck on pause: " + p.isDucking()); }
                     case 2 -> { p.setRestoreQueue(!p.isRestoreQueue()); setStatus("Restore queue: " + p.isRestoreQueue()); }
+                    case 3 -> { p.setNotifyMode(p.getNotifyMode() + 1); setStatus("Now-playing notify: " + notifyLabel(p.getNotifyMode())); }
                 }
                 MusicModule.refreshIdleState();
                 return true;
@@ -856,17 +856,11 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
     public void tick() {
         super.tick();
         if (statusTimer > 0) statusTimer--;
-        if (closing && openAnim.get() < 0.01f) {
-            closing = false;
-            minecraft.setScreen(backScreen);
-        }
     }
 
     @Override
     public void onClose() {
-        if (closing) return;
-        closing = true;
-        openAnim.set(0f);
+        anim.closeTo(backScreen);
     }
 
     @Override
@@ -934,6 +928,14 @@ public class MusicScreen extends Screen implements TextCapturingScreen {
     }
 
     public void setStatus(String msg) { statusText = msg; statusTimer = 80; }
+
+    private static String notifyLabel(int mode) {
+        return switch (mode) {
+            case 1 -> " Notify: Chat ";
+            case 2 -> " Notify: Off ";
+            default -> " Notify: Toast ";
+        };
+    }
 
     private static String formatTime(long ms) {
         long sec = ms / 1000;

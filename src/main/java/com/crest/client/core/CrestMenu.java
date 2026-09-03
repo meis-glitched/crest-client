@@ -21,7 +21,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class CrestMenu extends Screen {
+public class CrestMenu extends Screen implements TextCapturingScreen {
     private enum Tab { HOME, MODS, SETTINGS }
 
     private static final int MARGIN = 20;
@@ -96,11 +96,8 @@ public class CrestMenu extends Screen {
     private int hoveredThemeBtn = -1;
     private int lastHoveredThemeBtn = -1;
 
-    private final Animated openAnim = new Animated(0f, 12f);
-    private boolean closing;
-    private boolean openedOnce;
-    private boolean animEnabled = true;
-    private String animEasing = "Back";
+    private final ScreenAnim anim = new ScreenAnim();
+    private boolean poppedFirstTime;
     private final Animated[] tabAnims = new Animated[Tab.values().length];
     private final QuickSettingsDrawer quickSettings = new QuickSettingsDrawer();
     private final MusicMiniPlayer miniPlayer = new MusicMiniPlayer();
@@ -114,17 +111,10 @@ public class CrestMenu extends Screen {
     @Override
     protected void init() {
         Theme.load();
-        animEnabled = AnimationsScreen.isMenuAnimEnabled();
-        animEasing = AnimationsScreen.getMenuAnimEasing();
-        openAnim.setSpeed(AnimationsScreen.getMenuAnimSpeed());
-        if (!openedOnce) {
-            openedOnce = true;
-            if (animEnabled) {
-                openAnim.setImmediate(0f);
-                openAnim.set(1f);
-            } else {
-                openAnim.setImmediate(1f);
-            }
+        anim.updateConfig();
+        if (!poppedFirstTime) {
+            poppedFirstTime = true;
+            anim.begin();
         }
         for (Animated a : tabAnims) a.set(0f);
         rebuildFilterMenu();
@@ -195,29 +185,18 @@ public class CrestMenu extends Screen {
         this.mx = mx;
         this.my = my;
         Theme.tick(delta);
-        openAnim.tick(delta);
+        float open = anim.update(delta);
+        searchBar.tick(delta);
         for (Animated a : tabAnims) a.tick(delta);
 
-        float open = openAnim.get();
-
-        if (closing && open < 0.01f) {
-            minecraft.setScreen(null);
-            return;
-        }
         if (open < 0.01f) return;
 
         if (Breakpoints.getCurrentSize(width) != currentSize) computeLayout();
 
-        g.fill(0, 0, width, height,
-            ColorUtil.withAlpha(Theme.GLASS_BG, (int) (Theme.glassOpacity * Anim.easeOutCubic(open))));
+        anim.backdrop(g, width, height);
 
-        float t = closing ? Anim.easeInOutCubic(open)
-            : switch (animEasing) {
-                case "Cubic" -> Anim.easeOutCubic(open);
-                case "Expo" -> Easing.expoOut(open);
-                default -> Anim.easeOutBack(open);
-            };
-        float scale = 0.92f + 0.08f * t;
+        float tv = Anim.clamp(anim.value(), 0f, 1.15f);
+        float scale = 0.9f + 0.1f * tv;
         float cx = pX + pW / 2f;
         float cy = pY + pH / 2f;
 
@@ -225,7 +204,7 @@ public class CrestMenu extends Screen {
         g.pose().translate(cx, cy);
         g.pose().scale(scale, scale);
         g.pose().translate(-cx, -cy);
-        g.pose().translate(0, (1 - t) * -8);
+        g.pose().translate(0, (1 - tv) * -10);
 
         Panel.draw(g, pX, pY, pW, pH, Theme.GLASS_BG);
         Panel.drawHollowRect(g, pX, pY, pW, pH, Theme.BORDER_LIGHT);
@@ -247,7 +226,7 @@ public class CrestMenu extends Screen {
 
     /** True while the menu is mid pop-in or animating out; interactions are swallowed. */
     private boolean inputBlocked() {
-        return animEnabled && (closing || openAnim.get() < 0.9f);
+        return anim.isBusy() || anim.isClosing();
     }
 
     // ------------------------------------------------------------------ top bar
@@ -559,12 +538,12 @@ public class CrestMenu extends Screen {
         String id = mod.getId();
         boolean enabled = CrestModules.isEnabled(id);
 
-        float open = openAnim.get();
+        float open = anim.value();
         float staggerPerCard = cascadeCardTotal > 0 ? Math.min(0.04f, 0.55f / cascadeCardTotal) : 0;
         float cardStart = cascadeCardIndex * staggerPerCard;
         float cardProgress = Anim.clamp((open - cardStart) / 0.18f, 0, 1);
         cascadeCardIndex++;
-        if (!animEnabled || cardProgress < 0.01f) return;
+        if (!anim.isEnabled() || cardProgress < 0.01f) return;
 
         float scale = 0.95f + 0.05f * Anim.easeOutBack(cardProgress);
         float ccx = cx + cw / 2f;
@@ -1061,7 +1040,7 @@ public class CrestMenu extends Screen {
                 }
                 UiSounds.click();
                 Screen config = mod.createConfigScreen(this);
-                minecraft.setScreen(config != null ? config : new ModuleDetailScreen(mod, this));
+                navigate(config != null ? config : new ModuleDetailScreen(mod, this));
                 return true;
             }
             return true;
@@ -1110,13 +1089,13 @@ public class CrestMenu extends Screen {
 
     private void openSetting(int i) {
         switch (i) {
-            case 0 -> minecraft.setScreen(new HudEditScreen());
-            case 1 -> minecraft.setScreen(new ThemeEditorScreen(this));
-            case 2 -> AnimationsScreen.open(this);
-            case 3 -> minecraft.setScreen(new ProfileScreen(this));
-            case 4 -> minecraft.setScreen(new MusicScreen(MusicModule.getPlayer(), this));
-            case 5 -> minecraft.setScreen(new ResourcePackBrowserScreen(this));
-            case 6 -> minecraft.setScreen(new StreamerSettingsScreen(this));
+            case 0 -> navigate(new HudEditScreen());
+            case 1 -> navigate(new ThemeEditorScreen(this));
+            case 2 -> navigate(new AnimationsScreen(this));
+            case 3 -> navigate(new ProfileScreen(this));
+            case 4 -> navigate(new MusicScreen(MusicModule.getPlayer(), this));
+            case 5 -> navigate(new ResourcePackBrowserScreen(this));
+            case 6 -> navigate(new StreamerSettingsScreen(this));
         }
     }
 
@@ -1175,18 +1154,22 @@ public class CrestMenu extends Screen {
         Minecraft.getInstance().setScreen(new CrestMenu());
     }
 
+    /** Cross-fade into a sub-screen: exit anim, then swap on completion. */
+    private void navigate(Screen target) {
+        anim.closeTo(target);
+    }
+
     @Override
     public void onClose() {
-        if (!animEnabled) {
-            minecraft.setScreen(null);
-            return;
-        }
-        if (closing) return;
-        closing = true;
-        openAnim.set(0f);
+        anim.closeTo(null);
     }
     @Override
     public boolean isPauseScreen() { return false; }
+
+    @Override
+    public boolean isCapturingText() {
+        return tab == Tab.MODS && searchBar.isFocused();
+    }
 
     private record ModGroup(String title, List<CrestModule> mods) {}
 }

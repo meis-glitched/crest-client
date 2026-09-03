@@ -29,7 +29,7 @@ public class HudEditScreen extends Screen {
     private static final int SNAP = 4;
     private static boolean snapEnabled = true;
 
-    private final Animated openAnim = new Animated(0f, 10f);
+    private final ScreenAnim anim = new ScreenAnim();
     private final Animated selectAnim = new Animated(0f, 12f);
     private final Animated handleAnim = new Animated(0f, 12f);
     private int mx, my;
@@ -50,8 +50,7 @@ public class HudEditScreen extends Screen {
     @Override
     protected void init() {
         Theme.load();
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
         selectAnim.set(0f);
         handleAnim.set(0f);
         currentSize = Breakpoints.getCurrentSize(width);
@@ -61,7 +60,7 @@ public class HudEditScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         this.mx = mx; this.my = my;
         Theme.tick(delta);
-        openAnim.tick(delta);
+        anim.update(delta);
         selectAnim.tick(delta);
         handleAnim.tick(delta);
 
@@ -70,8 +69,8 @@ public class HudEditScreen extends Screen {
             currentSize = newSize;
         }
 
-        int open = (int) (Theme.glassOpacity * openAnim.get());
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, open));
+        int open = (int) (Theme.glassOpacity * anim.t());
+        anim.blurBackdrop(g, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, open));
 
         List<HudModule> modules = getHudModules();
         modules.sort(Comparator.comparingInt(m -> HudSettings.getOrder(m.getId())));
@@ -318,7 +317,7 @@ public class HudEditScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(null);
+        anim.closeTo(null);
     }
 
     @Override

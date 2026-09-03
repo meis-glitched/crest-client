@@ -34,7 +34,7 @@ public class CornerTextConfigScreen extends Screen {
     private final Screen parent;
     private final List<Setting<?>> settings;
 
-    private final Animated openAnim = new Animated(0f, 10f);
+    private final ScreenAnim anim = new ScreenAnim();
     private int activeTextIdx = -1;
     private String editBuffer;
 
@@ -60,8 +60,7 @@ public class CornerTextConfigScreen extends Screen {
         this.module = module;
         this.parent = parent;
         this.settings = module.getSettings();
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
     }
 
     @Override
@@ -69,14 +68,14 @@ public class CornerTextConfigScreen extends Screen {
         this.mx = mx;
         this.my = my;
         Theme.tick(delta);
-        openAnim.tick(delta);
+        anim.update(delta);
         cpAnim.tick(delta);
-        float open = openAnim.get();
-        if (open < 0.01f) return;
+        float open = anim.t();
+        if (open < 0.01f && !anim.isClosing()) return;
 
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, (int) (Theme.glassOpacity * open)));
+        anim.backdrop(g, width, height);
 
-        int wy = (int) ((1 - open) * -14);
+        int wy = anim.slideY(-14);
         g.pose().pushMatrix();
         g.pose().translate(0, wy);
 
@@ -810,7 +809,7 @@ public class CornerTextConfigScreen extends Screen {
     }
 
     @Override
-    public void onClose() { minecraft.setScreen(parent); }
+    public void onClose() { anim.closeTo(parent); }
     @Override
     public boolean isPauseScreen() { return false; }
 }

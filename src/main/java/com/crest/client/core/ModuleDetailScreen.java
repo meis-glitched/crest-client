@@ -39,7 +39,7 @@ public class ModuleDetailScreen extends Screen {
     private ColorPicker colorPicker;
     private final Animated colorPickerAnim = new Animated(0f, 12f);
 
-    private final Animated openAnim = new Animated(0f, 10f);
+    private final ScreenAnim anim = new ScreenAnim();
     private final SearchBar searchBar = new SearchBar(q -> {}, "Search settings...");
     private int hoveredRow = -1;
 
@@ -51,8 +51,7 @@ public class ModuleDetailScreen extends Screen {
         this.parent = parent;
         this.settings = module.getSettings();
         this.groups = module.getSettingGroups();
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
     }
 
     @Override
@@ -146,7 +145,7 @@ public class ModuleDetailScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         Theme.tick(delta);
-        openAnim.tick(delta);
+        anim.update(delta);
         colorPickerAnim.tick(delta);
 
         Breakpoints.Size newSize = Breakpoints.getCurrentSize(width);
@@ -155,11 +154,9 @@ public class ModuleDetailScreen extends Screen {
             computePanelSize();
         }
 
-        float open = openAnim.get();
+        anim.backdrop(g, width, height);
 
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(Theme.GLASS_BG, (int) (Theme.glassOpacity * open)));
-
-        int wy = (int) ((1 - open) * 24);
+        int wy = anim.slideY(24);
         g.pose().pushMatrix();
         g.pose().translate(0, wy);
 
@@ -418,7 +415,7 @@ public class ModuleDetailScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(parent);
+        anim.closeTo(parent);
     }
 
     private void renderColorPicker(GuiGraphicsExtractor g, int mx, int my) {

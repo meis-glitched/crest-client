@@ -36,8 +36,8 @@ public class ThemeEditorScreen extends Screen {
 
     private final List<Widget> items = new ArrayList<>();
     private final Map<String, Boolean> sectionExpanded = new HashMap<>();
-    private final Animated openAnim = new Animated(0f, 10f);
     private final Animated colorAnim = new Animated(0f, 12f);
+    private final ScreenAnim anim = new ScreenAnim();
     private final ScrollContainer scroll = new ScrollContainer();
 
     private int mx, my;
@@ -50,8 +50,7 @@ public class ThemeEditorScreen extends Screen {
     public ThemeEditorScreen(Screen parent) {
         super(Component.literal("Theme Editor"));
         this.parent = parent;
-        openAnim.setImmediate(0f);
-        openAnim.set(1f);
+        anim.begin();
         sectionExpanded.put("Colors", true);
         sectionExpanded.put("Appearance", true);
         sectionExpanded.put("Blur", true);
@@ -168,7 +167,7 @@ public class ThemeEditorScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         this.mx = mx; this.my = my;
         Theme.tick(delta);
-        openAnim.tick(delta);
+        float open = anim.update(delta);
         colorAnim.tick(delta);
         if (messageTimer > 0) messageTimer--;
 
@@ -178,10 +177,11 @@ public class ThemeEditorScreen extends Screen {
             computeLayout();
         }
 
-        float open = openAnim.get();
+        if (open < 0.01f && !anim.isClosing()) return;
 
-        g.fill(0, 0, width, height, ColorUtil.withAlpha(work.glassBg, (int) (work.glassOpacity * open)));
-        int wy = (int) ((1 - open) * 16);
+        anim.blurBackdrop(g, width, height,
+            ColorUtil.withAlpha(work.glassBg, (int) (work.glassOpacity * anim.t())));
+        int wy = anim.slideY(16);
         g.pose().pushMatrix();
         g.pose().translate(0, wy);
 
@@ -386,7 +386,7 @@ public class ThemeEditorScreen extends Screen {
     private void flash(String m) { message = m; messageTimer = 120; }
 
     @Override
-    public void onClose() { minecraft.setScreen(parent); }
+    public void onClose() { anim.closeTo(parent); }
     @Override
     public boolean isPauseScreen() { return false; }
 

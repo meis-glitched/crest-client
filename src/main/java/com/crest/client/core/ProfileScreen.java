@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 
 public class ProfileScreen extends Screen {
     private final Screen parent;
+    private final ScreenAnim anim = new ScreenAnim();
     private TextInput nameInput;
     private final ScrollContainer profileList;
     private int mx, my;
@@ -23,6 +24,7 @@ public class ProfileScreen extends Screen {
     protected ProfileScreen(Screen parent) {
         super(Component.literal("Profiles"));
         this.parent = parent;
+        anim.begin();
 
         nameInput = new TextInput("", this::onNameChanged);
 
@@ -67,10 +69,14 @@ public class ProfileScreen extends Screen {
         this.mx = mx;
         this.my = my;
         Theme.tick(delta);
+        anim.update(delta);
 
         int pX = 40, pY = 40, pW = width - 80, pH = height - 80;
 
-        g.fill(0, 0, width, height, Theme.GLASS_BG);
+        anim.backdrop(g, width, height);
+        int wy = anim.slideY(-12);
+        g.pose().pushMatrix();
+        g.pose().translate(0, wy);
         Panel.draw(g, pX, pY, pW, pH, Theme.GLASS_BG);
         Panel.drawHollowRect(g, pX, pY, pW, pH, Theme.BORDER_LIGHT);
 
@@ -87,6 +93,8 @@ public class ProfileScreen extends Screen {
 
         g.text(font, Component.literal("ESC to go back  |  click a profile to Apply, Delete to remove"),
             60, height - 56, Theme.MUTED_FOREGROUND);
+
+        g.pose().popMatrix();
     }
 
     private void drawButton(GuiGraphicsExtractor g, String label, int x, int y, int w, int h, boolean primary) {
@@ -159,7 +167,7 @@ public class ProfileScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(parent);
+        anim.closeTo(parent);
     }
 
     @Override

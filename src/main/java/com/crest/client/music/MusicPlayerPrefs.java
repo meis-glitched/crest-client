@@ -34,6 +34,9 @@ public class MusicPlayerPrefs {
     private float duckVolume = 30f;
     private boolean restoreQueue = true;
 
+    // 0 = toast, 1 = chat, 2 = off
+    private int notifyMode = 0;
+
     private List<String> lastQueue = new ArrayList<>();
     private int lastIndex = -1;
 
@@ -63,6 +66,9 @@ public class MusicPlayerPrefs {
     public boolean isRestoreQueue() { return restoreQueue; }
     public void setRestoreQueue(boolean b) { restoreQueue = b; dirty = true; }
 
+    public int getNotifyMode() { return notifyMode; }
+    public void setNotifyMode(int m) { notifyMode = ((m % 3) + 3) % 3; dirty = true; }
+
     public List<String> getLastQueue() { return lastQueue; }
     public int getLastIndex() { return lastIndex; }
 
@@ -89,6 +95,7 @@ public class MusicPlayerPrefs {
                 INSTANCE.ducking = loaded.ducking;
                 INSTANCE.duckVolume = loaded.duckVolume;
                 INSTANCE.restoreQueue = loaded.restoreQueue;
+                INSTANCE.notifyMode = loaded.notifyMode;
                 INSTANCE.lastQueue = loaded.lastQueue != null ? loaded.lastQueue : new ArrayList<>();
                 INSTANCE.lastIndex = loaded.lastIndex;
             }

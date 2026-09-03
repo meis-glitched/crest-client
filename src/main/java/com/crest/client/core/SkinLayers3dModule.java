@@ -37,6 +37,13 @@ public class SkinLayers3dModule implements CrestModule {
     @Override
     public void onInitialize() { INSTANCE = this; }
 
+    /** Resolve the module from the registry, falling back to the cached instance. */
+    public static SkinLayers3dModule getInstance() {
+        var m = INSTANCE;
+        if (m != null) return m;
+        return CrestModules.get("skin_layers_3d") instanceof SkinLayers3dModule mod ? mod : null;
+    }
+
     @Override
     public List<Setting<?>> getSettings() {
         return List.of(enabled, headThickness, bodyThickness, armsThickness, legsThickness,
@@ -71,22 +78,22 @@ public class SkinLayers3dModule implements CrestModule {
     }
 
     public static float getHeadThickness() {
-        var m = INSTANCE;
+        var m = getInstance();
         return m != null ? m.headThickness.get() : 0.4f;
     }
 
     public static float getBodyThickness() {
-        var m = INSTANCE;
+        var m = getInstance();
         return m != null ? m.bodyThickness.get() : 0.5f;
     }
 
     public static float getArmsThickness() {
-        var m = INSTANCE;
+        var m = getInstance();
         return m != null ? m.armsThickness.get() : 0.3f;
     }
 
     public static float getLegsThickness() {
-        var m = INSTANCE;
+        var m = getInstance();
         return m != null ? m.legsThickness.get() : 0.3f;
     }
 }

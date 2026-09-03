@@ -32,18 +32,21 @@ public final class CrestSkinConfig {
     public static boolean compatibilityMode = true;
 
     public static boolean isEnabled(String layer) {
-        SkinLayers3dModule mod = SkinLayers3dModule.INSTANCE;
+        SkinLayers3dModule mod = SkinLayers3dModule.getInstance();
         return mod != null && CrestModules.isEnabled("skin_layers_3d") && mod.isLayerEnabled(layer);
     }
 
     public static void refresh() {
-        SkinLayers3dModule mod = SkinLayers3dModule.INSTANCE;
-        if (mod == null)
-            return;
-        baseVoxelSize = 1.0f + SkinLayers3dModule.getBodyThickness() * 0.6f;
-        bodyVoxelWidthSize = 1.0f + SkinLayers3dModule.getBodyThickness() * 0.25f;
-        headVoxelSize = 1.0f + SkinLayers3dModule.getHeadThickness() * 0.6f;
-        firstPersonPixelScaling = 1.0f + SkinLayers3dModule.getArmsThickness() * 0.4f;
+        // Clamp thickness-driven scaling to a proportional, non-distorted range.
+        // Unbounded, a maxed slider (1.0) inflates the mesh ~1.6x with pixels up to
+        // 8 deep, so the model turns into a bloated, overlapping (torn) mess.
+        float body = clamp(SkinLayers3dModule.getBodyThickness(), 0f, 0.5f);
+        float head = clamp(SkinLayers3dModule.getHeadThickness(), 0f, 0.4f);
+        float arms = clamp(SkinLayers3dModule.getArmsThickness(), 0f, 0.3f);
+        baseVoxelSize = 1.0f + body * 0.6f;
+        bodyVoxelWidthSize = 1.0f + body * 0.25f;
+        headVoxelSize = 1.0f + head * 0.6f;
+        firstPersonPixelScaling = 1.0f + arms * 0.4f;
         skullVoxelSize = headVoxelSize;
         enableHat = isEnabled("hat");
         enableJacket = isEnabled("jacket");
@@ -51,6 +54,10 @@ public final class CrestSkinConfig {
         enableRightSleeve = isEnabled("rightSleeve");
         enableLeftPants = isEnabled("leftPants");
         enableRightPants = isEnabled("rightPants");
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return value < min ? min : Math.min(value, max);
     }
 
 }

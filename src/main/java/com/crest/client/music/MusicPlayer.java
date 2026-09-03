@@ -1,5 +1,8 @@
 package com.crest.client.music;
 
+import com.crest.client.core.concurrent.CrestExecutors;
+import com.crest.client.core.logging.CrestLogger;
+import com.crest.client.core.logging.LoggerFactory;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
@@ -20,6 +23,7 @@ import java.util.Random;
 
 
 public class MusicPlayer {
+    private static final CrestLogger LOGGER = LoggerFactory.getLogger("MusicPlayer");
     public enum RepeatMode { OFF, ONE, ALL }
 
     private final AudioPlayerManager manager;
@@ -98,7 +102,7 @@ public class MusicPlayer {
 
             @Override
             public void onTrackStart(AudioPlayer p, AudioTrack track) {
-                System.out.println("[Crest Music] Track started: " + track.getInfo().title + " by " + track.getInfo().author);
+                LOGGER.audio("Track started: {} by {}", track.getInfo().title, track.getInfo().author);
                 currentTrack = track;
                 paused = false;
                 startLoop();
@@ -107,7 +111,7 @@ public class MusicPlayer {
 
             @Override
             public void onTrackEnd(AudioPlayer p, AudioTrack track, AudioTrackEndReason reason) {
-                System.out.println("[Crest Music] Track ended: " + reason);
+                LOGGER.audio("Track ended: {}", reason);
                 currentTrack = null;
                 if (reason == AudioTrackEndReason.FINISHED) {
                     // Auto-advance unless we're on repeat-one (handled below) or stopped.
@@ -124,13 +128,13 @@ public class MusicPlayer {
 
             @Override
             public void onTrackException(AudioPlayer p, AudioTrack track, FriendlyException ex) {
-                System.err.println("[Crest Music] Error playing " + track.getInfo().title + ": " + ex.getMessage());
+                LOGGER.error("Error playing track: {}", ex, track.getInfo().title);
                 if (onError != null) onError.run(ex.getMessage());
             }
 
             @Override
             public void onTrackStuck(AudioPlayer p, AudioTrack track, long thresholdMs) {
-                System.err.println("[Crest Music] Track stuck: " + track.getInfo().title);
+                LOGGER.error("Track stuck: {} (threshold: {}ms)", track.getInfo().title, thresholdMs);
                 if (onError != null) onError.run("Track stuck: " + track.getInfo().title);
             }
         });
@@ -140,6 +144,7 @@ public class MusicPlayer {
     }
 
     private void selectBackend() {
+        LOGGER.info("Selecting audio backend...");
         // 1) Self-contained JDK audio (javax.sound.sampled) — no system CLI, no
         //    separate OpenAL context. SourceDataLine.write() blocks to the device
         //    buffer and naturally paces playback to real time.
@@ -148,7 +153,8 @@ public class MusicPlayer {
             audioBackend = "javasound";
             audioBackendPath = null;
             backendAvailable = true;
-            System.out.println("[Crest Music] Audio backend: JavaSound (self-contained)");
+            LOGGER.info("Using JavaSound audio backend");
+            LOGGER.info("Audio backend: JavaSound (self-contained)");
             return;
         }
 
@@ -186,14 +192,14 @@ public class MusicPlayer {
                     audioBackend = backends[i];
                     audioBackendPath = resolved;
                     backendAvailable = true;
-                    System.out.println("[Crest Music] Using audio backend: " + audioBackend + " (" + resolved + ")");
+                    LOGGER.info("Using audio backend: {} ({})", audioBackend, resolved);
                     return;
                 }
             } catch (Exception e) {
                 // try next backend
             }
         }
-        System.err.println("[Crest Music] No audio backend found!");
+        LOGGER.error("No audio backend found!");
         outputKind = OutputKind.NONE;
         audioBackend = null;
         audioBackendPath = null;
@@ -203,39 +209,13 @@ public class MusicPlayer {
     public boolean isBackendAvailable() { return backendAvailable; }
 
     public static boolean isUrlAllowed(String url) {
-        if (url == null || url.isBlank()) return false;
-        String trimmed = url.trim();
-        // Only allow http/https remote URLs. Block file:, ftp:, and private/loopback hosts
-        // to avoid local file disclosure and SSRF against internal services.
-        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
-        try {
-            java.net.URI uri = new java.net.URI(trimmed);
-            String host = uri.getHost();
-            if (host == null) return false;
-            host = host.toLowerCase();
-            if (host.equals("localhost") || host.endsWith(".localhost") || host.endsWith(".local")) return false;
-            if (host.equals("0.0.0.0") || host.endsWith(".0.0.0.0")) return false;
-            // Reject IPv4 private/loopback/link-local ranges.
-            if (host.matches("\\d+(\\.\\d+){3}")) {
-                String[] parts = host.split("\\.");
-                int a = Integer.parseInt(parts[0]);
-                int b = Integer.parseInt(parts[1]);
-                if (a == 10) return false;
-                if (a == 127) return false;
-                if (a == 169 && b == 254) return false;
-                if (a == 172 && b >= 16 && b <= 31) return false;
-                if (a == 192 && b == 168) return false;
-            }
-        } catch (java.net.URISyntaxException e) {
-            return false;
-        }
-        return true;
+        return com.crest.client.core.security.UrlValidator.isUrlAllowed(url);
     }
 
     public void search(String query, SearchCallback callback) {
         if (query == null || query.isBlank()) return;
         String sq = "scsearch:" + query;
-        System.out.println("[Crest Music] Searching: " + sq);
+        LOGGER.info("Searching: {}", sq);
         manager.loadItem(sq, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
@@ -262,39 +242,39 @@ public class MusicPlayer {
     public void loadAndPlay(String url) {
         if (url == null || url.isBlank()) return;
         if (!url.contains("://") || !isUrlAllowed(url)) {
-            System.err.println("[Crest Music] Refused to load disallowed URL: " + url);
+            LOGGER.security("Refused to load disallowed URL: {}", url);
             if (onError != null) onError.run("URL not allowed: " + url);
             return;
         }
-        System.out.println("[Crest Music] Loading: " + url);
+        LOGGER.info("Loading: {}", url);
         manager.loadItem(url, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
-                System.out.println("[Crest Music] Track loaded: " + track.getInfo().title);
+                LOGGER.info("Track loaded: {}", track.getInfo().title);
                 playList(List.of(track), 0);
             }
 
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
                 if (playlist.getTracks().isEmpty()) {
-                    System.out.println("[Crest Music] Playlist is empty");
+                    LOGGER.info("Playlist is empty");
                     if (onError != null) onError.run("Playlist is empty");
                     return;
                 }
-                System.out.println("[Crest Music] Playlist loaded, " + playlist.getTracks().size() + " tracks");
+                LOGGER.info("Playlist loaded: {} tracks", playlist.getTracks().size());
                 currentPlaylist = playlist;
                 playList(playlist.getTracks(), 0);
             }
 
             @Override
             public void noMatches() {
-                System.out.println("[Crest Music] No matches for: " + url);
+                LOGGER.info("No matches for: {}", url);
                 if (onError != null) onError.run("No results for URL");
             }
 
             @Override
             public void loadFailed(FriendlyException ex) {
-                System.err.println("[Crest Music] Load failed for " + url + ": " + ex.getMessage());
+                LOGGER.error("Load failed for {}", ex, url);
                 if (onError != null) onError.run("Load failed: " + ex.getMessage());
             }
         });
@@ -308,7 +288,7 @@ public class MusicPlayer {
             if (onError != null) onError.run("Not a folder: " + folderPath);
             return;
         }
-        System.out.println("[Crest Music] Loading folder: " + folderPath);
+        LOGGER.info("Loading folder: {}", folderPath);
         manager.loadItem("folder://" + folderPath, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
@@ -578,7 +558,7 @@ public class MusicPlayer {
 
                     @Override
                     public void loadFailed(FriendlyException ex) {
-                        System.err.println("[Crest Music] Restore failed for " + uri + ": " + ex.getMessage());
+                        LOGGER.error("Restore failed for {}", ex, uri);
                         finishRestore(slots, pending, startIndex);
                     }
                 });
@@ -597,10 +577,10 @@ public class MusicPlayer {
             if (t != null) tracks.add(t);
         }
         if (tracks.isEmpty()) {
-            System.out.println("[Crest Music] Nothing restored from saved queue");
+            LOGGER.info("Nothing restored from saved queue");
             return;
         }
-        System.out.println("[Crest Music] Restoring " + tracks.size() + " queued tracks");
+        LOGGER.info("Restoring {} queued tracks", tracks.size());
         playList(tracks, Math.max(0, Math.min(startIndex, tracks.size() - 1)));
     }
 
@@ -639,7 +619,7 @@ public class MusicPlayer {
                 return outputOpen;
             } else if (outputKind == OutputKind.SYSTEM) {
                 if (audioBackendPath == null) {
-                    System.err.println("[Crest Music] No audio backend available");
+                    LOGGER.error("No audio backend available");
                     return false;
                 }
                 try {
@@ -662,11 +642,11 @@ public class MusicPlayer {
                     pb.redirectErrorStream(false);
                     audioProcess = pb.start();
                     audioOutput = audioProcess.getOutputStream();
-                    System.out.println("[Crest Music] Audio output opened via " + audioBackend);
+                    LOGGER.info("Audio output opened via {}", audioBackend);
                     outputOpen = true;
                     return true;
                 } catch (Exception e) {
-                    System.err.println("[Crest Music] Failed to open audio output: " + e);
+                    LOGGER.error("Failed to open audio output", e);
                     return false;
                 }
             }
@@ -684,7 +664,7 @@ public class MusicPlayer {
                     audioOutput.write(data);
                 } catch (Exception e) {
                     if (!Thread.interrupted()) {
-                        System.err.println("[Crest Music] Write error: " + e);
+                        LOGGER.error("Write error", e);
                     }
                 }
             }
