@@ -27,9 +27,9 @@ public class FrameCapture {
     private static int stagingW = -1;
     private static int stagingH = -1;
 
-    // ponytail: 16 buffers — enough headroom for async GPU capture at 120fps without depleting free pool
-    private static final ArrayBlockingQueue<ByteBuffer> freePool = new ArrayBlockingQueue<>(16);
-    private static final ArrayBlockingQueue<ByteBuffer> filledQueue = new ArrayBlockingQueue<>(16);
+    // ponytail: 24 buffers — increased for higher FPS stability without depleting free pool
+    private static final ArrayBlockingQueue<ByteBuffer> freePool = new ArrayBlockingQueue<>(24);
+    private static final ArrayBlockingQueue<ByteBuffer> filledQueue = new ArrayBlockingQueue<>(24);
 
     // Actual captured dimensions (taken from the live render target, which may
     // differ from the window size on HiDPI/scaled displays). ffmpeg must be told

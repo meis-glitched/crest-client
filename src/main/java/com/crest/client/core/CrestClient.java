@@ -5,6 +5,7 @@ import com.crest.client.core.concurrent.CrestExecutors;
 import com.crest.client.core.logging.CrestLogger;
 import com.crest.client.core.logging.LoggerFactory;
 import com.crest.client.core.network.HttpClient;
+import com.crest.client.core.performance.FramePacer;
 import com.crest.client.catstrokes.CatStrokesModule;
 import com.crest.client.core.event.TickEvent;
 import com.crest.client.music.MusicModule;
@@ -37,6 +38,11 @@ public class CrestClient implements ClientModInitializer {
         // Initialize core infrastructure
         CrestExecutors.initialize();
         HttpClient.initialize();
+        
+        // Initialize frame pacer for smooth rendering at high FPS
+        FramePacer.setEnabled(true);
+        // No FPS cap by default - let VSync or user settings handle it
+        
         LOGGER.info("Core infrastructure initialized");
         
         CrestModules.init();
