@@ -58,14 +58,16 @@ public class WaypointImporter {
                 
                 int color = parseColor(colorStr);
                 BlockPos pos = new BlockPos(x, y, z);
-                ResourceKey<Level> dim = parseDimension(dimension);
                 
-                Waypoint wp = new Waypoint(UUID.randomUUID().toString(), name, pos, dim);
-                wp.color = color;
-                
-                if (wpObj.has("icon")) {
-                    wp.iconId = wpObj.get("icon").getAsString();
-                }
+                Waypoint wp = new Waypoint(
+                    UUID.randomUUID().toString(),
+                    pos,
+                    name,
+                    color,
+                    wpObj.has("icon") ? wpObj.get("icon").getAsString() : null,
+                    false,
+                    Waypoint.Type.NORMAL
+                );
                 
                 waypoints.add(wp);
             }
@@ -95,13 +97,16 @@ public class WaypointImporter {
                 String icon = parts.length > 6 ? parts[6] : null;
                 
                 BlockPos pos = new BlockPos(x, y, z);
-                ResourceKey<Level> dim = parseDimension(dimension);
                 
-                Waypoint wp = new Waypoint(UUID.randomUUID().toString(), name, pos, dim);
-                wp.color = color;
-                if (icon != null && !icon.isEmpty()) {
-                    wp.iconId = icon;
-                }
+                Waypoint wp = new Waypoint(
+                    UUID.randomUUID().toString(),
+                    pos,
+                    name,
+                    color,
+                    icon,
+                    false,
+                    Waypoint.Type.NORMAL
+                );
                 
                 waypoints.add(wp);
             }
@@ -131,11 +136,16 @@ public class WaypointImporter {
                 
                 int color = convertXaerosColor(xaerosColor);
                 BlockPos pos = new BlockPos(x, y, z);
-                ResourceKey<Level> dim = convertXaerosDimension(xaerosDim);
                 
-                Waypoint wp = new Waypoint(UUID.randomUUID().toString(), name, pos, dim);
-                wp.color = color;
-                wp.iconId = symbol.toLowerCase();
+                Waypoint wp = new Waypoint(
+                    UUID.randomUUID().toString(),
+                    pos,
+                    name,
+                    color,
+                    symbol.toLowerCase(),
+                    false,
+                    Waypoint.Type.NORMAL
+                );
                 
                 waypoints.add(wp);
             }

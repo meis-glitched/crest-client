@@ -46,15 +46,14 @@ public class WaypointExporter {
         JsonArray waypointsArray = new JsonArray();
         for (Waypoint wp : waypoints) {
             JsonObject wpObj = new JsonObject();
-            wpObj.addProperty("id", wp.uuid);
-            wpObj.addProperty("name", wp.name);
-            wpObj.addProperty("x", wp.pos.getX());
-            wpObj.addProperty("y", wp.pos.getY());
-            wpObj.addProperty("z", wp.pos.getZ());
-            wpObj.addProperty("dimension", wp.dimension.location().toString());
-            wpObj.addProperty("color", String.format("#%06X", wp.color & 0xFFFFFF));
-            if (wp.iconId != null) {
-                wpObj.addProperty("icon", wp.iconId);
+            wpObj.addProperty("id", wp.getId());
+            wpObj.addProperty("name", wp.getName());
+            wpObj.addProperty("x", wp.getPosition().getX());
+            wpObj.addProperty("y", wp.getPosition().getY());
+            wpObj.addProperty("z", wp.getPosition().getZ());
+            wpObj.addProperty("color", String.format("#%06X", wp.getColor() & 0xFFFFFF));
+            if (wp.getIconId() != null) {
+                wpObj.addProperty("icon", wp.getIconId());
             }
             waypointsArray.add(wpObj);
         }
@@ -70,17 +69,16 @@ public class WaypointExporter {
             writer.write("name,x,y,z,dimension,color,icon,description\n");
             
             for (Waypoint wp : waypoints) {
-                BlockPos pos = wp.pos;
-                String color = String.format("#%06X", wp.color & 0xFFFFFF);
-                String icon = wp.iconId != null ? wp.iconId : "";
-                String description = ""; // Add description field if available
+                BlockPos pos = wp.getPosition();
+                String color = String.format("#%06X", wp.getColor() & 0xFFFFFF);
+                String icon = wp.getIconId() != null ? wp.getIconId() : "";
+                String description = "";
                 
-                writer.write(String.format("\"%s\",%d,%d,%d,\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                    escapeCsv(wp.name),
+                writer.write(String.format("\"%s\",%d,%d,%d,\"%s\",\"%s\",\"%s\"\n",
+                    escapeCsv(wp.getName()),
                     pos.getX(),
                     pos.getY(),
                     pos.getZ(),
-                    wp.dimension.location().toString(),
                     color,
                     icon,
                     description));
@@ -91,23 +89,17 @@ public class WaypointExporter {
     private static void exportXaeros(List<Waypoint> waypoints, Path outputFile) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(outputFile)) {
             for (Waypoint wp : waypoints) {
-                BlockPos pos = wp.pos;
+                BlockPos pos = wp.getPosition();
+                int color = convertColorToXaeros(wp.getColor());
+                String symbol = wp.getIconId() != null ? wp.getIconId().substring(0, 1).toUpperCase() : "W";
                 
-                // Xaero's format: waypoint:Name:Symbol:X:Y:Z:Color:disabled:type:set:dimension
-                String dimension = wp.dimension.location().toString();
-                String xaerosDim = convertToXaerosDimension(dimension);
-                
-                int color = convertColorToXaeros(wp.color);
-                String symbol = wp.iconId != null ? wp.iconId.substring(0, 1).toUpperCase() : "W";
-                
-                writer.write(String.format("waypoint:%s:%s:%d:%d:%d:%d:false:0:Internal-%s\n",
-                    escapeName(wp.name),
+                writer.write(String.format("waypoint:%s:%s:%d:%d:%d:%d:false:0:Internal-overworld-waypoints\n",
+                    escapeName(wp.getName()),
                     symbol,
                     pos.getX(),
                     pos.getY(),
                     pos.getZ(),
-                    color,
-                    xaerosDim));
+                    color));
             }
         }
     }
