@@ -154,4 +154,14 @@ public class CrestModules {
     public static void notify(String message, int color) {
         NotificationToast.show(message, color);
     }
+    
+    public static List<HudModule> getHudModules() {
+        List<HudModule> hudModules = new ArrayList<>();
+        for (CrestModule module : modules.values()) {
+            if (module instanceof HudModule) {
+                hudModules.add((HudModule) module);
+            }
+        }
+        return hudModules;
+    }
 }

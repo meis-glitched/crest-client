@@ -25,6 +25,11 @@ public final class ColorUtil {
         return (c & 0x00FFFFFF) | ((a & 0xFF) << 24);
     }
 
+    /** Mix two colors with a blend factor (0.0 = colorA, 1.0 = colorB) */
+    public static int mix(int colorA, int colorB, float blend) {
+        return lerpARGB(colorA, colorB, blend);
+    }
+    
     /** Linearly interpolate between two packed ARGB colors in premultiplied alpha space for correct blending. */
     public static int lerpARGB(int a, int b, float t) {
         int aA = getA(a), aR = getR(a), aG = getG(a), aB = getB(a);
