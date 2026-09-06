@@ -89,7 +89,7 @@ public class HudModuleSidebar {
         int y = 40;
         int height = screenHeight - y - 10;
         
-        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND));
+        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND, 240));
         Panel.drawHollowRect(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BORDER, 200));
         
         renderSearchBar(g, x + PADDING, y + PADDING, WIDTH - PADDING * 2, mouseX, mouseY);

@@ -71,7 +71,7 @@ public class HudContextMenu {
         int height = calculateHeight();
         
         int bgAlpha = (int)(245 * fadeProgress);
-        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND, 240), 6);
+        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND, 240));
         Panel.drawHollowRect(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BORDER, (int)(220 * fadeProgress)));
         
         int drawY = y + PADDING;

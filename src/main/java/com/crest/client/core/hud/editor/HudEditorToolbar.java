@@ -123,7 +123,7 @@ public class HudEditorToolbar {
         Panel.draw(g, x, y, 60, BUTTON_HEIGHT, bgColor);
         
         if (hover) {
-            Panel.draw(g, x - 2, y - 2, 64, BUTTON_HEIGHT + 4, ColorUtil.withAlpha(Theme.ACCENT));
+            Panel.draw(g, x - 2, y - 2, 64, BUTTON_HEIGHT + 4, ColorUtil.withAlpha(Theme.ACCENT, 240));
         }
         
         String text = "✓ Save";
@@ -182,7 +182,7 @@ public class HudEditorToolbar {
         Panel.drawHollowRect(g, x, y, ICON_BUTTON_WIDTH, BUTTON_HEIGHT, ColorUtil.withAlpha(borderColor, 200));
         
         if (active && hover) {
-            Panel.draw(g, x - 2, y - 2, ICON_BUTTON_WIDTH + 4, BUTTON_HEIGHT + 4, ColorUtil.withAlpha(Theme.ACCENT));
+            Panel.draw(g, x - 2, y - 2, ICON_BUTTON_WIDTH + 4, BUTTON_HEIGHT + 4, ColorUtil.withAlpha(Theme.ACCENT, 240));
         }
         
         int textColor = active ? 0xFFFFFFFF : Theme.FOREGROUND;

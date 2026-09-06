@@ -17,6 +17,10 @@ public class CatStrokesOverlay {
 
     private static final int HAND_W = 100;
     private static final int HAND_H = 80;
+    
+    private static float smoothMouseX = 0.5f;
+    private static float smoothMouseY = 0.5f;
+    private static final float MOUSE_SMOOTHING = 0.15f;
 
     public static void render(GuiGraphicsExtractor g, Minecraft mc, KeyStateTracker input, int baseX, int baseY, float scale) {
         if (mc.getWindow() == null) return;
@@ -61,16 +65,56 @@ public class CatStrokesOverlay {
         int winH = mc.getWindow().getHeight();
         int guiW = mc.getWindow().getGuiScaledWidth();
         int guiH = mc.getWindow().getGuiScaledHeight();
+        
         double guiX = rawX * guiW / winW;
         double guiY = rawY * guiH / winH;
-        double texX = (guiX - baseX) / scale;
-        double texY = (guiY - baseY) / scale;
-        texX = Math.max(MPAD_X, Math.min(MPAD_X + MPAD_W, texX));
-        texY = Math.max(MPAD_Y, Math.min(MPAD_Y + MPAD_H, texY));
-
+        
+        double normX = (guiX - baseX) / (tw * scale);
+        double normY = (guiY - baseY) / (th * scale);
+        
+        normX = Math.max(0.0, Math.min(1.0, normX));
+        normY = Math.max(0.0, Math.min(1.0, normY));
+        
+        smoothMouseX += (float)(normX - smoothMouseX) * MOUSE_SMOOTHING;
+        smoothMouseY += (float)(normY - smoothMouseY) * MOUSE_SMOOTHING;
+        
+        double centerX = MPAD_X + MPAD_W / 2.0;
+        double centerY = MPAD_Y + MPAD_H / 2.0;
+        
+        double offsetX = (smoothMouseX - 0.5) * MPAD_W * 0.9;
+        double offsetY = (smoothMouseY - 0.5) * MPAD_H * 0.9;
+        
+        double radiusX = MPAD_W * 0.45;
+        double radiusY = MPAD_H * 0.45;
+        double distance = Math.sqrt((offsetX * offsetX) / (radiusX * radiusX) + 
+                                   (offsetY * offsetY) / (radiusY * radiusY));
+        
+        if (distance > 1.0) {
+            offsetX /= distance;
+            offsetY /= distance;
+        }
+        
+        int handX = (int)(centerX + offsetX);
+        int handY = (int)(centerY + offsetY);
+        
+        float clickScale = 1.0f;
+        int clickOffsetY = 0;
+        
+        if (input.isLeftMouseDown() || input.isRightMouseDown()) {
+            clickScale = 0.95f;
+            clickOffsetY = 2;
+        }
+        
+        g.pose().pushMatrix();
+        g.pose().translate(baseX + handX, baseY + handY + clickOffsetY);
+        g.pose().scale(clickScale);
+        g.pose().translate(-(baseX + handX), -(baseY + handY + clickOffsetY));
+        
         g.blit(RenderPipelines.GUI_TEXTURED, CatStrokesTextures.RIGHTHAND,
-            baseX + (int)texX - HAND_W / 2, baseY + (int)texY - HAND_H / 2,
+            baseX + handX - HAND_W / 2, baseY + handY - HAND_H / 2,
             0f, 0f, HAND_W, HAND_H, HAND_W, HAND_H, HAND_W, HAND_H, 0xFFFFFFFF);
+        
+        g.pose().popMatrix();
 
         g.pose().popMatrix();
     }

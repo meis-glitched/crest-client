@@ -70,7 +70,7 @@ public class HudPropertiesPanel {
         int y = 40;
         int height = screenHeight - y - 10;
         
-        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND));
+        Panel.draw(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BACKGROUND, 240));
         Panel.drawHollowRect(g, x, y, WIDTH, height, ColorUtil.withAlpha(Theme.BORDER, 200));
         
         if (selectedModule == null) {
@@ -136,12 +136,12 @@ public class HudPropertiesPanel {
         
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal("X:"), x, y, Theme.MUTED_FOREGROUND);
         String xText = String.valueOf(settings.x);
-        Panel.draw(g, x + 20, y - 2, inputWidth - 20, 16, ColorUtil.withAlpha(Theme.CARD));
+        Panel.draw(g, x + 20, y - 2, inputWidth - 20, 16, ColorUtil.withAlpha(Theme.CARD, 200));
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal(xText), x + 24, y, Theme.FOREGROUND);
         
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal("Y:"), x + inputWidth + 8, y, Theme.MUTED_FOREGROUND);
         String yText = String.valueOf(settings.y);
-        Panel.draw(g, x + inputWidth + 28, y - 2, inputWidth - 20, 16, ColorUtil.withAlpha(Theme.CARD));
+        Panel.draw(g, x + inputWidth + 28, y - 2, inputWidth - 20, 16, ColorUtil.withAlpha(Theme.CARD, 200));
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal(yText), x + inputWidth + 32, y, Theme.FOREGROUND);
         
         return y + 20;
@@ -246,12 +246,12 @@ public class HudPropertiesPanel {
         int buttonWidth = (width - 8) / 2;
         int buttonHeight = 24;
         
-        Panel.draw(g, x, y, buttonWidth, buttonHeight, ColorUtil.withAlpha(Theme.ACCENT));
+        Panel.draw(g, x, y, buttonWidth, buttonHeight, ColorUtil.withAlpha(Theme.ACCENT, 240));
         String applyText = "Apply";
         int applyWidth = net.minecraft.client.Minecraft.getInstance().font.width(applyText);
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal(applyText), x + (buttonWidth - applyWidth) / 2, y + (buttonHeight - net.minecraft.client.Minecraft.getInstance().font.lineHeight) / 2, 0xFFFFFFFF);
         
-        Panel.draw(g, x + buttonWidth + 8, y, buttonWidth, buttonHeight, ColorUtil.withAlpha(Theme.CARD));
+        Panel.draw(g, x + buttonWidth + 8, y, buttonWidth, buttonHeight, ColorUtil.withAlpha(Theme.CARD, 200));
         Panel.drawHollowRect(g, x + buttonWidth + 8, y, buttonWidth, buttonHeight, ColorUtil.withAlpha(Theme.BORDER, 200));
         String resetText = "Reset";
         int resetWidth = net.minecraft.client.Minecraft.getInstance().font.width(resetText);

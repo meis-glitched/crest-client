@@ -61,7 +61,7 @@ public class GridRenderer {
     }
     
     public void renderSnapLines(GuiGraphicsExtractor g, int x, int y, int width, int height, 
-                                int[] snapX, int[] snapY, float delta) {
+                                int[] snapX, int[] snapY, int screenWidth, int screenHeight, float delta) {
         if (snapX != null) {
             for (int snapPosX : snapX) {
                 int lineColor = ColorUtil.withAlpha(0xFF0000, 200);

@@ -12,6 +12,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -53,16 +54,13 @@ public class HudEditorV2 extends Screen {
         Minecraft.getInstance().setScreen(new HudEditorV2());
     }
     
-    @Override
     protected void init() {
         Theme.load();
         screenAnim.begin();
         HudProfileManager.getInstance().load();
     }
     
-    @Override
     public void render(GuiGraphicsExtractor g, DeltaTracker deltaTracker) {
-        super.render(g, deltaTracker);
         float delta = deltaTracker.getGameTimeDeltaTicks();
         
         renderBlurredBackground(g, delta);
@@ -82,7 +80,7 @@ public class HudEditorV2 extends Screen {
                 selectedModule.getY(),
                 selectedModule.getRenderWidth(),
                 selectedModule.getRenderHeight(),
-                snapLines[0], snapLines[1], delta
+                snapLines[0], snapLines[1], width, height, delta
             );
         }
         
@@ -98,7 +96,7 @@ public class HudEditorV2 extends Screen {
         int bgColor = ColorUtil.withAlpha(0x000000, 180);
         g.fill(0, 0, width, height, bgColor);
         
-        float bokehProgress = Math.min(1f, screenAnim.getAge() / 0.3f);
+        float bokehProgress = 1f;
         if (bokehProgress > 0.01f) {
             int bokehAlpha = (int)(30 * bokehProgress);
             for (int i = 0; i < 20; i++) {
@@ -128,7 +126,7 @@ public class HudEditorV2 extends Screen {
             }
             
             try {
-                module.render(g, DeltaTracker.ZERO);
+                module.render(g, minecraft, DeltaTracker.ZERO);
             } catch (Exception e) {
             }
             
@@ -158,11 +156,10 @@ public class HudEditorV2 extends Screen {
         int tipX = (width - tipWidth) / 2;
         int tipY = height - 20;
         
-        Panel.draw(g, tipX - 8, tipY - 4, tipWidth + 16, 20, ColorUtil.withAlpha(Theme.BACKGROUND));
+        Panel.draw(g, tipX - 8, tipY - 4, tipWidth + 16, 20, ColorUtil.withAlpha(Theme.BACKGROUND, 240));
         g.text(net.minecraft.client.Minecraft.getInstance().font, Component.literal(tip), tipX, tipY, Theme.MUTED_FOREGROUND);
     }
     
-    @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         mouseX = (int)event.x();
         mouseY = (int)event.y();
@@ -206,12 +203,11 @@ public class HudEditorV2 extends Screen {
         return super.mouseClicked(event, doubleClick);
     }
     
-    @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        this.mouseX = (int)mouseX;
-        this.mouseY = (int)mouseY;
+    public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+        this.mouseX = (int)event.x();
+        this.mouseY = (int)event.y();
         
-        if (propertiesPanel.handleDrag(mouseX, mouseY, width, height)) {
+        if (propertiesPanel.handleDrag(event.x(), event.y(), width, height)) {
             hasChanges = true;
             return true;
         }
@@ -249,15 +245,14 @@ public class HudEditorV2 extends Screen {
             return true;
         }
         
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return super.mouseDragged(event, dx, dy);
     }
     
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        this.mouseX = (int)mouseX;
-        this.mouseY = (int)mouseY;
+    public boolean mouseReleased(MouseButtonEvent event) {
+        this.mouseX = (int)event.x();
+        this.mouseY = (int)event.y();
         
-        if (button == 0) {
+        if (event.buttonInfo().input() == 0) {
             String contextAction = contextMenu.handleClick((int)mouseX, (int)mouseY);
             if (contextAction != null) {
                 handleContextMenuAction(contextAction);
@@ -273,10 +268,9 @@ public class HudEditorV2 extends Screen {
             propertiesPanel.handleMouseUp();
         }
         
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
     
-    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
         if (sidebar.handleScroll(deltaY)) {
             return true;
@@ -284,16 +278,17 @@ public class HudEditorV2 extends Screen {
         return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
     
-    @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
         
         if (key == GLFW.GLFW_KEY_ESCAPE) {
-            close();
+            onClose();
             return true;
         }
         
-        if (hasControlDown()) {
+        long window = GLFW.glfwGetCurrentContext();
+        if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+            GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS) {
             if (key == GLFW.GLFW_KEY_Z) {
                 history.undo();
                 return true;
@@ -320,7 +315,9 @@ public class HudEditorV2 extends Screen {
         }
         
         if (selectedModule != null) {
-            int moveAmount = hasShiftDown() ? 10 : 1;
+            long win = GLFW.glfwGetCurrentContext();
+            int moveAmount = (GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                             GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS) ? 10 : 1;
             boolean moved = false;
             
             switch (key) {
@@ -355,18 +352,17 @@ public class HudEditorV2 extends Screen {
         return super.keyPressed(event);
     }
     
-    @Override
-    public boolean charTyped(char chr, int modifiers) {
-        if (sidebar.handleCharTyped(chr)) {
+    public boolean charTyped(CharacterEvent event) {
+        if (sidebar.handleCharTyped((char) event.codepoint())) {
             return true;
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(event);
     }
     
     private void handleToolbarAction(String action) {
         switch (action) {
             case "save" -> saveAndClose();
-            case "close" -> close();
+            case "close" -> onClose();
             case "profile" -> {
             }
             default -> toolbar.handleAction(action);
@@ -480,10 +476,9 @@ public class HudEditorV2 extends Screen {
     
     private void saveAndClose() {
         HudProfileManager.getInstance().save();
-        close();
+        onClose();
     }
     
-    @Override
     public void onClose() {
         if (hasChanges) {
             HudProfileManager.getInstance().save();
@@ -491,7 +486,6 @@ public class HudEditorV2 extends Screen {
         super.onClose();
     }
     
-    @Override
     public boolean isPauseScreen() {
         return false;
     }

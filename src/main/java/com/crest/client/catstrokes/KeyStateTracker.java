@@ -23,6 +23,9 @@ public class KeyStateTracker {
     private boolean initialized;
 
     private double cursorX, cursorY;
+    private boolean leftMouseDown;
+    private boolean rightMouseDown;
+    
     // Reused scratch buffers so update() allocates nothing per frame.
     private final double[] cursorXBuf = new double[1];
     private final double[] cursorYBuf = new double[1];
@@ -58,6 +61,10 @@ public class KeyStateTracker {
         GLFW.glfwGetCursorPos(window, cursorXBuf, cursorYBuf);
         cursorX = cursorXBuf[0];
         cursorY = cursorYBuf[0];
+        
+        // Track mouse buttons
+        leftMouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+        rightMouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
     }
 
     public boolean isPressed(int index) {
@@ -77,4 +84,7 @@ public class KeyStateTracker {
 
     public double getCursorX() { return cursorX; }
     public double getCursorY() { return cursorY; }
+    
+    public boolean isLeftMouseDown() { return leftMouseDown; }
+    public boolean isRightMouseDown() { return rightMouseDown; }
 }

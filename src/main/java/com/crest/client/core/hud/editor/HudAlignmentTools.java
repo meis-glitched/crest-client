@@ -88,7 +88,7 @@ public class HudAlignmentTools {
         }
     }
     
-    public static int[] findSnapLines(HudModule dragging, List<HudModule> others, int threshold) {
+    public static int[][] findSnapLines(HudModule dragging, List<HudModule> others, int threshold) {
         int[] snapX = null;
         int[] snapY = null;
         

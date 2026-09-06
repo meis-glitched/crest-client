@@ -36,7 +36,7 @@ public class SelectionGlow {
         renderGlowBox(g, x - 6, y - 6, width + 12, height + 12, ColorUtil.withAlpha(glowColor, glowColor >>> 26), 16);
         
         int borderColor = ColorUtil.withAlpha(Theme.ACCENT, (int)(255 * intensity));
-        Panel.drawHollowRect(g, x - 1, y - 1, width + 2, height + 2, borderColor, 2);
+        Panel.drawHollowRect(g, x - 1, y - 1, width + 2, height + 2, borderColor);
         
         int cornerSize = 8;
         renderCorner(g, x - 1, y - 1, cornerSize, true, true, borderColor);
