@@ -14,7 +14,14 @@ public class CatStrokesConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static CatStrokesConfig instance;
 
+    /** Render scale of the 612x354 cat canvas. */
     public float scale = 1.0f;
+
+    /** How far the Live2D paw/eyes track the cursor (0=static). */
+    public float mouseSensitivity = 2.0f;
+
+    /** Draw the desk backdrop behind the cat/keyboard. */
+    public boolean showBackdrop = true;
 
     public static CatStrokesConfig getInstance() {
         if (instance == null) instance = load();

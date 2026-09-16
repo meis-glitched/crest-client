@@ -37,36 +37,62 @@ public class ReplayBufferModule implements CrestModule {
         CrestModules.getEventBus().subscribe(TickEvent.class, this::onTick);
     }
 
+    private boolean usesGsr() {
+        CrestModule m = CrestModules.get("streamer");
+        return m instanceof StreamerModule && ((StreamerModule) m).isGsrBackend();
+    }
+
     private void onTick(TickEvent event) {
         if (!enabled.get()) return;
+        if (!saveKey.wasPressed()) return;
 
-        if (saveKey.wasPressed()) {
-            if (ReplayBuffer.isSaving()) {
+        if (usesGsr()) {
+            if (GsrReplayBuffer.isSaving()) {
                 NotificationToast.show("Replay buffer still saving...");
                 return;
             }
-            if (!ReplayBuffer.isActive() || ReplayBuffer.getDurationSec() < 2) {
+            if (!GsrReplayBuffer.isActive() || GsrReplayBuffer.getDurationSec() < 2) {
                 NotificationToast.show("Not enough buffered footage");
                 return;
             }
-            String dir = System.getProperty("user.home") + "/Videos/";
-            new File(dir).mkdirs();
-            String path = dir + "crest-clip-" + java.time.Instant.now().toString()
-                .replace(":", "-").substring(0, 19) + ".mp4";
-            ReplayBuffer.saveAsync(path, Minecraft.getInstance().getFps());
             NotificationToast.show("Saving clip...");
+            GsrReplayBuffer.saveAsync();
+            return;
         }
+
+        if (ReplayBuffer.isSaving()) {
+            NotificationToast.show("Replay buffer still saving...");
+            return;
+        }
+        if (!ReplayBuffer.isActive() || ReplayBuffer.getDurationSec() < 2) {
+            NotificationToast.show("Not enough buffered footage");
+            return;
+        }
+        String dir = System.getProperty("user.home") + "/Videos/";
+        new File(dir).mkdirs();
+        String path = dir + "crest-clip-" + java.time.Instant.now().toString()
+            .replace(":", "-").substring(0, 19) + ".mp4";
+        ReplayBuffer.saveAsync(path, Minecraft.getInstance().getFps());
+        NotificationToast.show("Saving clip...");
     }
 
     @Override
     public void onEnable() {
         Minecraft mc = Minecraft.getInstance();
         int fps = Math.max(20, mc.getFps());
-        ReplayBuffer.start(fps, duration.get());
+        if (usesGsr()) {
+            GsrReplayBuffer.start(fps, duration.get());
+        } else {
+            ReplayBuffer.start(fps, duration.get());
+        }
     }
 
     @Override
     public void onDisable() {
-        ReplayBuffer.stop();
+        if (usesGsr()) {
+            GsrReplayBuffer.stop();
+        } else {
+            ReplayBuffer.stop();
+        }
     }
 }

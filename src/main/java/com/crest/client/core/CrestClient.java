@@ -8,6 +8,7 @@ import com.crest.client.core.network.HttpClient;
 import com.crest.client.core.performance.FramePacer;
 import com.crest.client.catstrokes.CatStrokesModule;
 import com.crest.client.core.event.TickEvent;
+import com.crest.client.core.hud.editor.HudEditorV2;
 import com.crest.client.music.MusicModule;
 import com.crest.client.music.MusicScreen;
 import com.crest.client.core.CrestBrandManager;
@@ -133,7 +134,7 @@ public class CrestClient implements ClientModInitializer {
 
         MusicModule.init();
 
-        KeybindManager.registerAction(GLFW.GLFW_KEY_F7, HudEditScreen::open);
+        KeybindManager.registerAction(GLFW.GLFW_KEY_F7, HudEditorV2::open);
 
         if (CrestModules.isFirstRun()) {
             CrestModules.applyDefaults();

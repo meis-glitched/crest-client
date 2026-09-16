@@ -20,39 +20,48 @@ public class CatStrokesModule extends HudModule {
     public String getCategory() { return "HUD"; }
 
     @Override
-    public String getDescription() { return "Bango Cat standard mode: catbg with keyboard overlays and left hand."; }
+    public String getDescription() { return "Live2D Bango Cat that reacts to your keyboard and mouse input."; }
 
     @Override
     public int getWidth() {
-        return (int) (CatStrokesTextures.TEX_W * CatStrokesConfig.getInstance().scale);
+        return Math.max(1, Math.round(CatRenderer.W * CatStrokesConfig.getInstance().scale));
     }
 
     @Override
     public int getHeight() {
-        return (int) (CatStrokesTextures.TEX_H * CatStrokesConfig.getInstance().scale);
+        return Math.max(1, Math.round(CatRenderer.H * CatStrokesConfig.getInstance().scale));
+    }
+
+    @Override
+    public void renderScaled(GuiGraphicsExtractor g, Minecraft mc, DeltaTracker d) {
+        render(g, mc, d);
     }
 
     @Override
     public void render(GuiGraphicsExtractor g, Minecraft mc, DeltaTracker d) {
         if (mc.getWindow() == null) return;
-        KeyStateTracker input = KeyStateTracker.getInstance();
-        if (!input.tryInit()) return;
-        input.update();
-
-        int dw = getWidth();
-        int dh = getHeight();
+        int dw = getRenderWidth();
+        int dh = getRenderHeight();
+        boolean overridden = getOverrideW() != null || getOverrideH() != null;
+        if (!overridden) {
+            int gw = mc.getWindow().getGuiScaledWidth();
+            int gh = mc.getWindow().getGuiScaledHeight();
+            if (gw > 0 && gh > 0) {
+                float k = Math.min(1f, Math.min((gw * 0.45f) / dw, (gh * 0.38f) / dh));
+                if (k < 1f) {
+                    dw = Math.max(1, Math.round(dw * k));
+                    dh = Math.max(1, Math.round(dh * k));
+                }
+            }
+        }
         int bx, by;
         if (x < 0) {
-            bx = (mc.getWindow().getGuiScaledWidth() - dw) / 2;
+            bx = Math.max(0, (mc.getWindow().getGuiScaledWidth() - dw) / 2);
+            by = Math.max(0, mc.getWindow().getGuiScaledHeight() - dh - 4);
         } else {
             bx = x;
-        }
-        if (y < 0) {
-            by = mc.getWindow().getGuiScaledHeight() - dh - 4;
-        } else {
             by = y;
         }
-
-        CatStrokesOverlay.render(g, mc, input, bx, by, CatStrokesConfig.getInstance().scale);
+        CatHud.instance().storeRect(bx, by, dw, dh);
     }
 }

@@ -70,14 +70,12 @@ public class SelectionGlow {
         int handleColor = ColorUtil.withAlpha(Theme.ACCENT, 255);
         int handleOutline = ColorUtil.withAlpha(0xFFFFFF, 255);
         
+        // Bottom-right corner -> diagonal resize (both axes)
+        // Bottom-center -> height only
+        // Right-center -> width only
         int[][] handles = {
-            {x - handleSize/2, y - handleSize/2},
-            {x + width - handleSize/2, y - handleSize/2},
-            {x - handleSize/2, y + height - handleSize/2},
             {x + width - handleSize/2, y + height - handleSize/2},
-            {x + width/2 - handleSize/2, y - handleSize/2},
             {x + width/2 - handleSize/2, y + height - handleSize/2},
-            {x - handleSize/2, y + height/2 - handleSize/2},
             {x + width - handleSize/2, y + height/2 - handleSize/2}
         };
         

@@ -1,7 +1,10 @@
 package com.crest.client.core;
 
+import com.crest.client.core.hud.profile.HudProfile;
+import com.crest.client.core.hud.profile.HudProfileManager;
 import com.crest.client.ui.Breakpoints;
-import com.crest.client.ui.ResponsiveValue;
+import com.crest.client.ui.ColorUtil;
+import com.crest.client.ui.Panel;
 import com.crest.client.ui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -82,13 +85,72 @@ public abstract class HudModule implements CrestModule, RenderableModule {
         return mc.getWindow() != null ? mc.getWindow().getGuiScaledWidth() : 1920;
     }
 
+    /**
+     * Which properties this module can display/apply in the HUD editor's
+     * properties panel. Subclasses override to narrow what makes sense.
+     */
+    public boolean supportsScale() { return true; }
+
+    public boolean supportsOpacity() { return true; }
+
+    public boolean supportsChrome() { return true; }
+
+    /** Runtime look source for the module, from the active HUD profile. */
+    protected HudProfile.ModuleSettings profileSettings() {
+        HudProfileManager mgr = HudProfileManager.getInstance();
+        mgr.ensureLoaded();
+        HudProfile profile = mgr.getCurrentProfile();
+        return profile != null ? profile.getModuleSettings(getId()) : null;
+    }
+
+    /** Draws the generic background/border/shadow behind a module box. */
+    public static void renderChrome(GuiGraphicsExtractor g, int x, int y, int w, int h, HudProfile.ModuleSettings s) {
+        if (w <= 0 || h <= 0) return;
+        float opacity = Math.max(0f, Math.min(1f, s.opacity));
+
+        if (s.shadowEnabled) {
+            int blur = Math.max(0, (int) Math.round(Math.min(10f, s.shadowBlur)));
+            int steps = Math.max(1, blur);
+            for (int i = blur; i >= 1; i--) {
+                float t = (steps - i + 1) / (float) steps;
+                int a = (int) (30 * t * opacity);
+                Panel.draw(g, x + s.shadowOffsetX - i, y + s.shadowOffsetY - i,
+                        w + i * 2, h + i * 2, ColorUtil.withAlpha(s.shadowColor, a));
+            }
+        }
+
+        if (s.backgroundEnabled) {
+            int a = (int) (205 * Math.max(0f, Math.min(1f, s.backgroundOpacity)) * opacity);
+            Panel.draw(g, x, y, w, h, ColorUtil.withAlpha(s.backgroundColor, a));
+        }
+
+        if (s.borderEnabled) {
+            int thickness = Math.max(1, (int) Math.round(Math.max(0f, s.borderThickness)));
+            int a = (int) (255 * opacity);
+            for (int i = 0; i < thickness; i++) {
+                Panel.drawHollowRect(g, x - i, y - i, w + i * 2, h + i * 2, ColorUtil.withAlpha(s.borderColor, a));
+            }
+        }
+    }
+
     public void renderScaled(GuiGraphicsExtractor g, Minecraft mc, DeltaTracker d) {
+        int natW = getWidth();
+        int natH = getHeight();
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        int rw = getRenderWidth();
+        int rh = getRenderHeight();
+        int rx = x < 0 ? screenW - rw : x;
+        int ry = y;
+
+        if (supportsChrome()) {
+            HudProfile.ModuleSettings s = profileSettings();
+            if (s != null) renderChrome(g, rx, ry, rw, rh, s);
+        }
+
         if (overrideW == null && overrideH == null) {
             render(g, mc, d);
             return;
         }
-        int natW = getWidth();
-        int natH = getHeight();
         if (natW <= 0 || natH <= 0) {
             render(g, mc, d);
             return;
@@ -97,12 +159,7 @@ public abstract class HudModule implements CrestModule, RenderableModule {
         float sy = (float) getRenderHeight() / natH;
         float s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.min(sx, sy)));
 
-        int screenW = mc.getWindow().getGuiScaledWidth();
-        int maxScale = screenW < 800 ? 1 : screenW < 1200 ? 2 : 4;
-        s = Math.min(s, maxScale);
-
-        int rx = x < 0 ? screenW - natW : x;
-        int ry = y;
+        s = Math.min(s, screenW < 800 ? 1 : screenW < 1200 ? 2 : 4);
 
         g.pose().pushMatrix();
         g.pose().translate(rx, ry);

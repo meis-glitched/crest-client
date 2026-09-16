@@ -37,6 +37,7 @@
         "LivingEntityMixin",
 
         "FrameCaptureMixin",
+        "GuiExtractMixin",
         "RenderBudgetMixin",
         "WhoamiMixin",
         "ChatLineAnimationMixin",

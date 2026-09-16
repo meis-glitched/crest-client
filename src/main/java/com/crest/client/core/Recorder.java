@@ -22,7 +22,7 @@ public class Recorder {
     public static void start(int fps) {
         if (recording.getAndSet(true)) return;
 
-        String monitor = getFocusedMonitor();
+        String monitor = MonitorUtil.getFocusedMonitor();
         if (monitor == null) {
             recording.set(false);
             return;
@@ -84,27 +84,5 @@ public class Recorder {
             }
             recorderProcess = null;
         }
-    }
-
-    private static String getFocusedMonitor() {
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c", "hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name'"});
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String name = r.readLine();
-                if (name != null && !name.isEmpty()) return name;
-            }
-        } catch (Exception ignored) {}
-        // fallback: first monitor from gpu-screen-recorder list
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"gpu-screen-recorder", "--list-monitors"});
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                String line = r.readLine();
-                if (line != null) {
-                    int sep = line.indexOf('|');
-                    if (sep > 0) return line.substring(0, sep);
-                }
-            }
-        } catch (Exception ignored) {}
-        return null;
     }
 }

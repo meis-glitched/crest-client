@@ -6,8 +6,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Streamer {
     private static final AtomicBoolean streaming = new AtomicBoolean(false);
+    private static final AtomicBoolean usingGsr = new AtomicBoolean(false);
     private static long startTimeMs;
     private static volatile String lastError;
+    private static volatile int currentBitrate;
+    private static volatile int currentFps;
     // ponytail: set true when streaming started with audio requested but we had to
     // fall back to no-audio because the audio device/backend was unavailable.
     private static volatile boolean audioFellBack;
@@ -19,11 +22,14 @@ public class Streamer {
     private static volatile long lastSecondEncoded;
 
     public static boolean isStreaming() { return streaming.get(); }
+    public static boolean isUsingGsr() { return usingGsr.get(); }
     public static long getStartTime() { return startTimeMs; }
     public static String getLastError() { return lastError; }
     public static void setLastError(String e) { lastError = e; }
     public static boolean didAudioFallBack() { return audioFellBack; }
     public static void setAudioFellBack(boolean v) { audioFellBack = v; }
+    public static int getCurrentBitrate() { return currentBitrate; }
+    public static int getCurrentFps() { return currentFps; }
 
     public static long getCapturedFrames() { return totalCapturedFrames.get(); }
     public static long getDroppedFrames() { return totalDroppedFrames.get(); }
@@ -51,17 +57,45 @@ public class Streamer {
         return true;
     }
 
+    /** True when the URL has no stream key after the RTMP ingest path (e.g. "rtmp://host/ingest").
+     *  RTMP servers require the key embedded in the URL to authorize a broadcast. */
+    public static boolean isMissingStreamKey(String url) {
+        if (url == null) return true;
+        String u = url.trim();
+        int scheme = u.indexOf("://");
+        if (scheme < 0) return true;
+        String rest = u.substring(scheme + 3);
+        String[] parts = rest.split("/", -1);
+        return parts.length < 3 || parts[2].isEmpty();
+    }
+
     public static void start(String url, int targetFps, int w, int h, int bitrate,
                              String encoder, String preset, String audioDevice, double scaleFactor,
-                             String recordOutput) {
+                             String recordOutput, boolean useGsr,
+                             String bitrateMode, String qualityPreset, boolean micEnabled,
+                             String frameRateMode) {
         if (streaming.getAndSet(true)) return;
+        usingGsr.set(useGsr);
+        currentFps = targetFps;
+        currentBitrate = bitrate;
         lastError = null;
         audioFellBack = false;
         totalCapturedFrames.set(0);
         totalDroppedFrames.set(0);
         totalEncodedFrames.set(0);
 
+        boolean audioEnabled = audioDevice != null && !audioDevice.isEmpty() && !audioDevice.equals("none");
+
         try {
+            if (useGsr) {
+                // GPU-only capture + hardware encode via gpu-screen-recorder (OBS-style).
+                GsrStreamer.start(url, targetFps, bitrate, audioEnabled, encoder, scaleFactor,
+                    bitrateMode, qualityPreset, micEnabled, frameRateMode);
+                // GsrStreamer resets its own flag if it failed to launch; mirror that.
+                if (!GsrStreamer.isStreaming()) streaming.set(false);
+                startTimeMs = GsrStreamer.getStartTime();
+                return;
+            }
             FifoStreamer.startStream(url, targetFps, w, h, bitrate, encoder, preset, audioDevice, scaleFactor, recordOutput);
         } catch (Exception e) {
             lastError = e.getMessage();
@@ -75,6 +109,8 @@ public class Streamer {
 
     public static void stop() {
         streaming.set(false);
+        usingGsr.set(false);
         FifoStreamer.stop();
+        GsrStreamer.stop();
     }
 }

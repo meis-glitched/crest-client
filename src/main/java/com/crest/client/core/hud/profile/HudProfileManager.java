@@ -2,6 +2,7 @@ package com.crest.client.core.hud.profile;
 
 import com.crest.client.core.CrestModules;
 import com.crest.client.core.HudModule;
+import com.crest.client.core.HudSettings;
 import com.crest.client.core.error.StorageException;
 import com.crest.client.core.logging.CrestLogger;
 import com.crest.client.core.logging.LoggerFactory;
@@ -26,6 +27,7 @@ public class HudProfileManager {
     private final Map<String, HudProfile> profiles = new LinkedHashMap<>();
     private HudProfile currentProfile;
     private static HudProfileManager instance;
+    private boolean bootStrapped;
     
     private HudProfileManager() {
         try {
@@ -43,24 +45,43 @@ public class HudProfileManager {
     }
     
     public void load() {
+        loadCore();
+        if (currentProfile != null) {
+            applyProfile(currentProfile);
+        }
+    }
+
+    /**
+     * Loads profile files and selects the current profile WITHOUT applying it
+     * (no enabled-flag writes / toasts). Safe for lazy calls from runtime
+     * render paths that only need to read {@link #getCurrentProfile()}.
+     */
+    public void ensureLoaded() {
+        if (bootStrapped) return;
+        bootStrapped = true;
+        loadCore();
+    }
+
+    private void loadCore() {
+        bootStrapped = true;
         profiles.clear();
-        
+
         if (!Files.exists(PROFILES_DIR)) {
             LOGGER.info("No profiles directory found, creating default profile");
             createDefaultProfile();
             return;
         }
-        
+
         try {
             Files.list(PROFILES_DIR)
                 .filter(p -> p.toString().endsWith(".json"))
                 .forEach(this::loadProfile);
-            
+
             if (profiles.isEmpty()) {
                 LOGGER.info("No profiles found, creating default");
                 createDefaultProfile();
             }
-            
+
             String currentId = loadCurrentProfileId();
             currentProfile = profiles.get(currentId);
             if (currentProfile == null) {
@@ -69,9 +90,7 @@ public class HudProfileManager {
             } else {
                 LOGGER.info("Loaded current profile: {}", currentProfile.getName());
             }
-            
-            applyProfile(currentProfile);
-            
+
         } catch (IOException e) {
             LOGGER.error("Failed to load profiles", e);
             createDefaultProfile();
@@ -175,25 +194,31 @@ public class HudProfileManager {
     
     private void captureCurrentState(HudProfile profile) {
         for (HudModule module : CrestModules.getHudModules()) {
-            HudProfile.ModuleSettings settings = new HudProfile.ModuleSettings();
-            settings.enabled = module.isEnabled();
-            settings.x = module.getX();
-            settings.y = module.getY();
-            settings.scale = 1.0f;
-            settings.opacity = 1.0f;
-            profile.setModuleSettings(module.getId(), settings);
+            HudProfile.ModuleSettings existing = profile.getModuleSettings(module.getId());
+            HudProfile.ModuleSettings s = existing != null ? existing : new HudProfile.ModuleSettings();
+            s.enabled = module.isEnabled();
+            s.x = module.getX();
+            s.y = module.getY();
+            Integer ow = module.getOverrideW();
+            if (ow != null && module.getWidth() > 0) {
+                s.scale = Math.max(0.3f, Math.min(4.0f, (float) ow / module.getWidth()));
+            }
+            profile.setModuleSettings(module.getId(), s);
         }
     }
     
     private void applyProfile(HudProfile profile) {
         for (HudModule module : CrestModules.getHudModules()) {
             HudProfile.ModuleSettings settings = profile.getModuleSettings(module.getId());
-            if (settings.enabled) {
-                CrestModules.setEnabled(module.getId(), true);
-            } else {
-                CrestModules.setEnabled(module.getId(), true);
-            }
+            CrestModules.setEnabledSilent(module.getId(), settings.enabled);
             module.setX(settings.x); module.setY(settings.y);
+
+            if (settings.scale != 1.0f) {
+                int w = Math.max(1, Math.round(module.getWidth() * settings.scale));
+                int h = Math.max(1, Math.round(module.getHeight() * settings.scale));
+                module.setSize(w, h);
+                HudSettings.setSize(module.getId(), w, h);
+            }
         }
     }
     

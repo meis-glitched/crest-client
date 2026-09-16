@@ -2,6 +2,7 @@ package com.crest.client.core.hud.editor;
 import com.crest.client.core.CrestModules;
 
 import com.crest.client.core.HudModule;
+import com.crest.client.core.HudSettings;
 
 import java.util.*;
 
@@ -90,13 +91,19 @@ public class HudEditorHistory {
         @Override
         public void undo() {
             HudModule module = findModule(moduleId);
-            if (module != null) module.setX(oldX); module.setY(oldY);
+            if (module != null) {
+                module.setX(oldX); module.setY(oldY);
+                HudSettings.setPosition(moduleId, oldX, oldY);
+            }
         }
-        
+
         @Override
         public void redo() {
             HudModule module = findModule(moduleId);
-            if (module != null) module.setX(newX); module.setY(newY);
+            if (module != null) {
+                module.setX(newX); module.setY(newY);
+                HudSettings.setPosition(moduleId, newX, newY);
+            }
         }
     }
     
@@ -114,10 +121,20 @@ public class HudEditorHistory {
         
         @Override
         public void undo() {
+            HudModule module = findModule(moduleId);
+            if (module != null) {
+                module.setSize(oldWidth, oldHeight);
+                HudSettings.setSize(moduleId, oldWidth, oldHeight);
+            }
         }
         
         @Override
         public void redo() {
+            HudModule module = findModule(moduleId);
+            if (module != null) {
+                module.setSize(newWidth, newHeight);
+                HudSettings.setSize(moduleId, newWidth, newHeight);
+            }
         }
     }
     
@@ -133,19 +150,18 @@ public class HudEditorHistory {
         
         @Override
         public void undo() {
-            HudModule module = findModule(moduleId);
-            if (module != null) {
-                if (oldVisible) CrestModules.setEnabled(module.getId(), true);
-                else CrestModules.setEnabled(module.getId(), true);
-            }
+            apply(oldVisible);
         }
         
         @Override
         public void redo() {
+            apply(newVisible);
+        }
+
+        private void apply(boolean visible) {
             HudModule module = findModule(moduleId);
             if (module != null) {
-                if (newVisible) CrestModules.setEnabled(module.getId(), true);
-                else CrestModules.setEnabled(module.getId(), true);
+                CrestModules.setEnabled(module.getId(), visible);
             }
         }
     }

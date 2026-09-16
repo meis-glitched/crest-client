@@ -9,8 +9,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
+
+import com.crest.client.core.logging.CrestLogger;
+import com.crest.client.core.logging.LoggerFactory;
 
 public class FifoStreamer {
+    private static final CrestLogger LOGGER = LoggerFactory.getLogger("FifoStreamer");
     private static final Path VIDEO_FIFO = Path.of("/tmp/crest_video_fifo");
 
     private static VideoEncoderThread encoderThread;
@@ -137,6 +142,9 @@ public class FifoStreamer {
     }
 
     private static Process launchFfmpeg(List<String> args) throws IOException {
+        StringJoiner sj = new StringJoiner(" ");
+        for (String a : args) sj.add(a.contains(" ") ? "'" + a + "'" : a);
+        LOGGER.info("ffmpeg command: {}", sj);
         ProcessBuilder pb = new ProcessBuilder(args);
         pb.redirectError(ProcessBuilder.Redirect.PIPE);
         Process p = pb.start();
@@ -177,15 +185,7 @@ public class FifoStreamer {
         if (audioDevice != null && !audioDevice.isEmpty() && !audioDevice.equals("none")) {
             String backend = EncoderProbe.getWorkingAudioBackend();
             cmd.add("-f"); cmd.add(backend);
-            // Use the first detected device instead of "default"
-            String[] devices = EncoderProbe.getAudioDevices();
-            if (devices != null && devices.length > 0) {
-                cmd.add("-i"); cmd.add(devices[0]);  // Use the first device (actual detected device)
-            } else {
-                // Fallback if no device detected
-                cmd.add("-f"); cmd.add("lavfi");
-                cmd.add("-i"); cmd.add("anullsrc=r=44100:cl=stereo");
-            }
+            cmd.add("-i"); cmd.add(audioDevice);
             cmd.add("-c:a"); cmd.add("aac");
             cmd.add("-b:a"); cmd.add("64k");
             cmd.add("-ar"); cmd.add("44100");
@@ -226,7 +226,16 @@ public class FifoStreamer {
         } else if (encoder.endsWith("_nvenc") || encoder.endsWith("_amf") || encoder.endsWith("_videotoolbox")) {
             cmd.add("-preset"); cmd.add(preset);
         } else if (isVaapi) {
-            cmd.add("-preset"); cmd.add(preset);
+            // VAAPI has no -preset option (silently ignored). Map the speed
+            // selection to the real controls: -quality (higher = faster encode),
+            // encoder parallelism, and VBR rate control for streaming.
+            int quality;
+            if ("fast".equals(preset)) quality = 8;
+            else if ("slow".equals(preset)) quality = 2;
+            else quality = 5;
+            cmd.add("-quality"); cmd.add(String.valueOf(quality));
+            cmd.add("-async_depth"); cmd.add("8");
+            cmd.add("-rc_mode"); cmd.add("3");
         }
 
         // Build filter chain: scale (if needed) + vflip + format
@@ -234,12 +243,14 @@ public class FifoStreamer {
         int sh = scaled(height, scaleFactor);
         StringBuilder vf = new StringBuilder();
         if (isVaapi) {
-            // VAAPI pipeline: upload to GPU, scale on GPU (if needed), flip, format
-            vf.append("hwupload");
+            // VAAPI pipeline: software filters (vflip/format) must run BEFORE the
+            // frames are uploaded to the GPU. hwupload first then vflip/format makes
+            // the graph fail with "Invalid argument" and kills the stream. Scaling
+            // happens on the GPU afterwards with scale_vaapi.
+            vf.append("format=nv12,vflip,hwupload");
             if (scaleFactor < 0.99 || scaleFactor > 1.01) {
                 vf.append(",scale_vaapi=w=").append(sw).append(":h=").append(sh);
             }
-            vf.append(",vflip,format=nv12");
         } else {
             if (scaleFactor < 0.99 || scaleFactor > 1.01) {
                 vf.append("scale=").append(sw).append(":").append(sh).append(",");

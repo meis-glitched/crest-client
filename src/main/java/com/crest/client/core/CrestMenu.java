@@ -1,5 +1,6 @@
 package com.crest.client.core;
 
+import com.crest.client.core.hud.editor.HudEditorV2;
 import com.crest.client.music.MusicMiniPlayer;
 import com.crest.client.music.MusicModule;
 import com.crest.client.music.MusicScreen;
@@ -1089,7 +1090,7 @@ public class CrestMenu extends Screen implements TextCapturingScreen {
 
     private void openSetting(int i) {
         switch (i) {
-            case 0 -> navigate(new HudEditScreen());
+            case 0 -> navigate(new HudEditorV2());
             case 1 -> navigate(new ThemeEditorScreen(this));
             case 2 -> navigate(new AnimationsScreen(this));
             case 3 -> navigate(new ProfileScreen(this));

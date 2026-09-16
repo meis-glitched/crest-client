@@ -29,15 +29,15 @@ public class EncoderProbe {
     private static volatile String[] encoderList = {"libx264"};
 
     public static void probe() {
-        List<String> found = new ArrayList<>();
+        List<String> candidates = new ArrayList<>();
         try {
             Process p = new ProcessBuilder("ffmpeg", "-hide_banner", "-encoders").start();
             try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
                 while ((line = r.readLine()) != null) {
                     for (String[] enc : ENCODERS) {
-                        if (line.contains(" " + enc[0] + " ")) {
-                            if (!found.contains(enc[0])) found.add(enc[0]);
+                        if (line.contains(" " + enc[0] + " ") && !candidates.contains(enc[0])) {
+                            candidates.add(enc[0]);
                         }
                     }
                 }
@@ -45,24 +45,54 @@ public class EncoderProbe {
             p.waitFor(3, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception ignored) {}
 
-        if (found.isEmpty()) found.add("libx264");
-
-        encoderList = found.toArray(new String[0]);
-
-        // Detect a usable VAAPI render device so we can hardware-encode on Intel/AMD Linux.
-        if (found.contains("h264_vaapi") || found.contains("hevc_vaapi")) {
-            for (String dev : new String[]{"/dev/dri/renderD128", "/dev/dri/renderD129", "/dev/dri/card0"}) {
-                if (new java.io.File(dev).exists()) { vaapiDevice = dev; break; }
-            }
-        }
-
-        // pick best: nvenc > amf > videotoolbox > qsv > libx264
+        // A compiled-in encoder is NOT necessarily usable (e.g. h264_nvenc is built
+        // into ffmpeg but fails on machines without the matching hardware/driver).
+        // Only the encoders that actually produce frames are kept, so the client
+        // never picks h264_nvenc/h264_amf/h264_qsv on a GPU that can't run them.
+        // Keep the ENCODERS priority order: hardware first, software last.
+        List<String> validated = new ArrayList<>();
         for (String[] enc : ENCODERS) {
-            if (found.contains(enc[0])) {
-                bestEncoder = enc[0];
-                break;
+            if (candidates.contains(enc[0]) && encoderWorks(enc[0])) {
+                validated.add(enc[0]);
             }
         }
+
+        if (validated.isEmpty()) validated.add("libx264");
+
+        encoderList = validated.toArray(new String[0]);
+        bestEncoder = encoderList[0];
+    }
+
+    // ponytail: probe each candidate with a real 2-frame encode to null. h264_nvenc
+    // is compiled into ffmpeg but errors on AMD/Intel-only boxes; filtering by
+    // livable output (not just name match) is the only reliable way to build the list.
+    private static boolean encoderWorks(String encoder) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add("ffmpeg");
+        cmd.add("-hide_banner");
+        cmd.add("-loglevel"); cmd.add("error");
+        cmd.add("-f"); cmd.add("lavfi");
+        cmd.add("-i"); cmd.add("testsrc=duration=0.4:size=320x180:rate=10");
+        cmd.add("-c:v"); cmd.add(encoder);
+        if (isVaapi(encoder)) {
+            if (vaapiDevice == null) return false;
+            cmd.add("-vaapi_device"); cmd.add(vaapiDevice);
+            cmd.add("-vf"); cmd.add("format=nv12,hwupload");
+        }
+        cmd.add("-frames:v"); cmd.add("2");
+        cmd.add("-f"); cmd.add("null");
+        cmd.add("-");
+        try {
+            Process p = new ProcessBuilder(cmd).start();
+            if (p.waitFor(4, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0) {
+                return true;
+            }
+            if (p.isAlive()) {
+                p.destroyForcibly();
+                p.waitFor(2, java.util.concurrent.TimeUnit.SECONDS);
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     public static String getBestEncoder() { return bestEncoder; }
@@ -129,14 +159,17 @@ public class EncoderProbe {
             }
         } catch (Exception ignored) {}
 
-        // Get default sink name
+        // Get default sink name. We capture the sink's MONITOR source (system
+        // audio), NOT the sink itself: ffmpeg's pulse input treats the device
+        // name as a SOURCE, so passing a raw sink name falls back to the default
+        // source (microphone). The monitor is what plays through the speakers.
         if (audioBackend.equals("pulse")) {
             try {
                 Process p = new ProcessBuilder("pactl", "get-default-sink").start();
                 try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                     String line = r.readLine();
                     if (line != null && !line.isBlank()) {
-                        audioDevices = new String[]{line.trim(), "default"};
+                        audioDevices = new String[]{line.trim() + ".monitor", line.trim()};
                     }
                 }
                 p.waitFor(1, java.util.concurrent.TimeUnit.SECONDS);

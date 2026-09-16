@@ -100,6 +100,19 @@ public class CrestModules {
         setEnabled(id, !isEnabled(id));
     }
 
+    /** Like {@link #setEnabled}, but without the toast notification (used by editor eye toggles). */
+    public static void setEnabledSilent(String id, boolean enabled) {
+        enabledOverrides.put(id, enabled);
+        configManager.set(id, "_enabled", enabled);
+        CrestModule m = modules.get(id);
+        if (m != null) {
+            if (enabled) m.onEnable();
+            else m.onDisable();
+            eventBus.post(new ModuleToggleEvent(m, enabled));
+        }
+        renderCacheDirty = true;
+    }
+
     /** Re-read every setting's persisted value from the config into the live objects. */
     public static void reloadSettings() {
         for (CrestModule mod : modules.values()) {

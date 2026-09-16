@@ -4,6 +4,8 @@ import com.crest.client.ui.ColorUtil;
 import com.crest.client.ui.Panel;
 import com.crest.client.ui.Theme;
 import com.crest.client.ui.ToggleSwitch;
+import com.crest.client.core.logging.CrestLogger;
+import com.crest.client.core.logging.LoggerFactory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -12,30 +14,38 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-public class StreamerSettingsScreen extends Screen {
+public class StreamerSettingsScreen extends Screen implements TextCapturingScreen {
+    private static final CrestLogger LOGGER = LoggerFactory.getLogger("StreamerSettings");
     private final Screen parent;
     private final StreamerModule module;
     private String urlText;
-    private boolean urlFocused;
+    private boolean urlFocused = true;
     private int cursorBlink;
     private int bitrate;
     private int streamFps;
+    private int frameRateModeIdx;
     private int encoderIdx;
     private int presetIdx;
     private int scaleIdx;
     private boolean audioEnabled;
     private boolean recordWhileStreaming;
+    private int bitrateModeIdx;
+    private int qualityPresetIdx;
+    private boolean micEnabled;
     private String audioDeviceText;
     private boolean audioFocused;
     private boolean streaming;
     private int panelW = 420;
-    private int panelH = 460;
+    private int panelH = 560;
     private int panelX, panelY;
 
     private boolean draggingBitrate;
     private static final int SLIDER_W = 200;
     private static final int SLIDER_H = 6;
     private static final String[] SCALES = {"0.25x", "0.5x", "0.75x", "1.0x"};
+    private static final String[] BITRATE_MODES = {"cbr", "qp", "vbr"};
+    private static final String[] QUALITY_PRESETS = {"medium", "high", "very_high", "ultra"};
+    private static final String[] FRAME_RATE_MODES = {"auto", "cfr", "vfr", "content"};
 
     public StreamerSettingsScreen(Screen parent) {
         super(Component.literal("Streamer Settings"));
@@ -44,12 +54,16 @@ public class StreamerSettingsScreen extends Screen {
         this.urlText = module.getStreamUrl();
         this.bitrate = module.getBitrate();
         this.streamFps = module.getFps();
+        this.frameRateModeIdx = module.getFrameRateModeIndex();
         String currentScale = module.getScaleFactor() + "x";
         String[] scales = {"0.25x", "0.5x", "0.75x", "1.0x"};
         this.scaleIdx = 3;
         for (int i = 0; i < SCALES.length; i++) { if (SCALES[i].equals(currentScale)) { scaleIdx = i; break; } }
         this.audioEnabled = module.isAudioEnabled();
         this.recordWhileStreaming = module.isRecordWhileStreaming();
+        this.bitrateModeIdx = module.getBitrateModeIndex();
+        this.qualityPresetIdx = module.getQualityPresetIndex();
+        this.micEnabled = module.isMicEnabled();
         String cfg = module.getAudioDevice();
         this.audioDeviceText = (cfg == null || cfg.isBlank() || cfg.equals("default")) ? "" : cfg;
         this.streaming = Streamer.isStreaming();
@@ -71,7 +85,7 @@ public class StreamerSettingsScreen extends Screen {
     @Override
     protected void init() {
         panelW = Math.min(400, width - 40);
-        panelH = Math.min(420, height - 40);
+        panelH = Math.min(560, height - 40);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
     }
@@ -107,9 +121,25 @@ public class StreamerSettingsScreen extends Screen {
         renderSlider(g, left, sy, cw, "FPS", streamFps, 15, 120, "fps", mx, my);
         sy += 36;
 
+        // Frame Rate Mode
+        g.text(font, Component.literal("Frame Rate Mode"), left, sy, Theme.TEXT_DIM);
+        String fmLabel = FRAME_RATE_MODES[Math.min(frameRateModeIdx, FRAME_RATE_MODES.length - 1)];
+        boolean fmHover = mx >= left && mx <= right && my >= sy + 10 && my <= sy + 28;
+        Panel.draw(g, left, sy + 10, cw, 18, ColorUtil.withAlpha(fmHover ? Theme.BG_HOVER : Theme.BG_SURFACE, 220));
+        g.text(font, Component.literal("\u25C0 " + fmLabel + " \u25B6"), cx, sy + 12, Theme.TEXT);
+        sy += 34;
+
         // Video Bitrate
         renderSlider(g, left, sy, cw, "Video Bitrate", bitrate, 500, 50000, "kbps", mx, my);
         sy += 36;
+
+        // Bitrate Mode
+        g.text(font, Component.literal("Bitrate Mode"), left, sy, Theme.TEXT_DIM);
+        String bmLabel = BITRATE_MODES[Math.min(bitrateModeIdx, BITRATE_MODES.length - 1)];
+        boolean bmHover = mx >= left && mx <= right && my >= sy + 10 && my <= sy + 28;
+        Panel.draw(g, left, sy + 10, cw, 18, ColorUtil.withAlpha(bmHover ? Theme.BG_HOVER : Theme.BG_SURFACE, 220));
+        g.text(font, Component.literal("\u25C0 " + bmLabel + " \u25B6"), cx, sy + 12, Theme.TEXT);
+        sy += 34;
 
         // Resolution Scale
         g.text(font, Component.literal("Resolution Scale"), left, sy, Theme.TEXT_DIM);
@@ -137,6 +167,14 @@ public class StreamerSettingsScreen extends Screen {
         g.text(font, Component.literal("\u25C0 " + presetLabel + " \u25B6"), cx, sy + 12, Theme.TEXT);
         sy += 34;
 
+        // Quality Preset (used in qp/vbr bitrate modes)
+        g.text(font, Component.literal("Quality Preset"), left, sy, Theme.TEXT_DIM);
+        String qpLabel = QUALITY_PRESETS[Math.min(qualityPresetIdx, QUALITY_PRESETS.length - 1)];
+        boolean qpHover = mx >= left && mx <= right && my >= sy + 10 && my <= sy + 28;
+        Panel.draw(g, left, sy + 10, cw, 18, ColorUtil.withAlpha(qpHover ? Theme.BG_HOVER : Theme.BG_SURFACE, 220));
+        g.text(font, Component.literal("\u25C0 " + qpLabel + " \u25B6"), cx, sy + 12, Theme.TEXT);
+        sy += 34;
+
         // Audio toggle
         g.text(font, Component.literal("Stream Audio"), left, sy, Theme.TEXT_DIM);
         ToggleSwitch.render(g, right - ToggleSwitch.W, sy - 2, audioEnabled, audioEnabled ? 1f : 0f);
@@ -148,6 +186,11 @@ public class StreamerSettingsScreen extends Screen {
             int adY = sy + 12;
             renderTextInput(g, left, adY, cw, 20, audioDeviceText, audioFocused, "detected device", mx, my);
             sy = adY + 20 + 10;
+
+            // Mic Audio toggle
+            g.text(font, Component.literal("Mic Audio"), left, sy, Theme.TEXT_DIM);
+            ToggleSwitch.render(g, right - ToggleSwitch.W, sy - 2, micEnabled, micEnabled ? 1f : 0f);
+            sy += 24;
         }
 
         // Record while streaming
@@ -230,6 +273,16 @@ public class StreamerSettingsScreen extends Screen {
         }
         sy += 36;
 
+        // Frame Rate Mode selector
+        if (btn == 0 && my >= sy + 10 && my <= sy + 28 && mx >= left && mx <= right) {
+            if (mx < left + cw / 2) {
+                frameRateModeIdx = (frameRateModeIdx - 1 + FRAME_RATE_MODES.length) % FRAME_RATE_MODES.length;
+            } else {
+                frameRateModeIdx = (frameRateModeIdx + 1) % FRAME_RATE_MODES.length;
+            }
+        }
+        sy += 34;
+
         // Bitrate slider
         if (btn == 0 && my >= sy + 12 && my <= sy + 12 + SLIDER_H + 8) {
             draggingBitrate = true;
@@ -237,6 +290,16 @@ public class StreamerSettingsScreen extends Screen {
             return true;
         }
         sy += 36;
+
+        // Bitrate Mode selector
+        if (btn == 0 && my >= sy + 10 && my <= sy + 28 && mx >= left && mx <= right) {
+            if (mx < left + cw / 2) {
+                bitrateModeIdx = (bitrateModeIdx - 1 + BITRATE_MODES.length) % BITRATE_MODES.length;
+            } else {
+                bitrateModeIdx = (bitrateModeIdx + 1) % BITRATE_MODES.length;
+            }
+        }
+        sy += 34;
 
         // Resolution Scale selector
         if (btn == 0 && my >= sy + 10 && my <= sy + 28 && mx >= left && mx <= right) {
@@ -272,6 +335,16 @@ public class StreamerSettingsScreen extends Screen {
         }
         sy += 34;
 
+        // Quality Preset selector
+        if (btn == 0 && my >= sy + 10 && my <= sy + 28 && mx >= left && mx <= right) {
+            if (mx < left + cw / 2) {
+                qualityPresetIdx = (qualityPresetIdx - 1 + QUALITY_PRESETS.length) % QUALITY_PRESETS.length;
+            } else {
+                qualityPresetIdx = (qualityPresetIdx + 1) % QUALITY_PRESETS.length;
+            }
+        }
+        sy += 34;
+
         // Audio toggle
         if (btn == 0 && mx >= right - ToggleSwitch.W && mx <= right && my >= sy - 2 && my <= sy + 16) {
             audioEnabled = !audioEnabled;
@@ -285,6 +358,13 @@ public class StreamerSettingsScreen extends Screen {
             audioFocused = mx >= left && mx <= right && my >= adY && my <= adY + 20;
             if (audioFocused) { cursorBlink = 0; urlFocused = false; }
             sy = adY + 20 + 10;
+
+            // Mic Audio toggle
+            if (btn == 0 && mx >= right - ToggleSwitch.W && mx <= right && my >= sy - 2 && my <= sy + 16) {
+                micEnabled = !micEnabled;
+                return true;
+            }
+            sy += 24;
         }
 
         // Record while streaming toggle
@@ -345,6 +425,28 @@ public class StreamerSettingsScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
         if (key == 256) { saveAndClose(); return true; }
+
+        // Paste (Ctrl+V / Cmd+V, resolved via isPaste() so platform quirks and the
+        // correct modifier bit are handled). Must use KeyboardHandler's cached
+        // clipboard — glfwGetClipboardString hangs/returns empty on Wayland, and a
+        // stray 'v' char event would otherwise corrupt the field.
+        if (event.isPaste() && (urlFocused || audioFocused)) {
+            String clip = minecraft.keyboardHandler.getClipboard();
+            if (clip != null) {
+                clip = clip.replace("\r", "").replace("\n", "").replace("\t", "").trim();
+                if (!clip.isEmpty()) {
+                    if (urlFocused) {
+                        urlText += clip;
+                        module.setStreamUrl(urlText);
+                    } else if (audioFocused) {
+                        audioDeviceText += clip;
+                        module.setAudioDevice(audioDeviceText);
+                    }
+                }
+            }
+            return true;
+        }
+
         if (urlFocused) {
             if (key == 259 && !urlText.isEmpty()) {
                 urlText = urlText.substring(0, urlText.length() - 1);
@@ -371,6 +473,11 @@ if (audioFocused) {
         module.setAudioDevice(audioDeviceText);
         module.setAudioEnabled(audioEnabled);
         module.setRecordWhileStreaming(recordWhileStreaming);
+        // Save bitrate mode / quality preset / mic
+        module.setBitrateModeIndex(Math.min(bitrateModeIdx, BITRATE_MODES.length - 1));
+        module.setQualityPresetIndex(Math.min(qualityPresetIdx, QUALITY_PRESETS.length - 1));
+        module.setMicEnabled(micEnabled);
+        module.setFrameRateModeIndex(Math.min(frameRateModeIdx, FRAME_RATE_MODES.length - 1));
         // Save encoder choice
         String[] encoders = EncoderProbe.getAvailableEncoders();
         if (encoderIdx >= 0 && encoderIdx < encoders.length) {
@@ -403,36 +510,63 @@ if (audioFocused) {
             Streamer.stop();
             streaming = false;
             NotificationToast.show("Stream stopped");
-        } else {
-            Minecraft mc = Minecraft.getInstance();
-            int w = mc.getWindow().getWidth();
-            int h = mc.getWindow().getHeight();
-            if (w <= 0 || h <= 0) return;
-            if (urlText == null || urlText.isEmpty() || urlText.equals("rtmp://live.twitch.tv/app/")) return;
-            if (!Streamer.isUrlAllowed(urlText)) return;
-
-            String[] encoders = EncoderProbe.getAvailableEncoders();
-            String enc = encoders[Math.min(encoderIdx, encoders.length - 1)];
-            String[] presets = EncoderProbe.getPresets(enc);
-            String preset = presets[Math.min(presetIdx, presets.length - 1)];
-
-            double sf = Double.parseDouble(SCALES[Math.min(scaleIdx, SCALES.length - 1)].replace("x", ""));
-            String recPath = null;
-            if (recordWhileStreaming) {
-                String dir = System.getProperty("user.home") + "/Videos/";
-                try { new java.io.File(dir).mkdirs(); } catch (Exception ignored) {}
-                recPath = dir + "crest-stream-" + java.time.Instant.now().toString()
-                    .replace(":", "-").substring(0, 19) + ".mkv";
-            }
-            Streamer.start(urlText, streamFps, w, h, bitrate, enc, preset,
-                audioEnabled ? audioDeviceText : "none", sf, recPath);
-            streaming = true;
-            NotificationToast.show("Stream started (" + enc + " @ " + streamFps + "fps)");
+            return;
         }
+        Minecraft mc = Minecraft.getInstance();
+        int w = mc.getWindow().getWidth();
+        int h = mc.getWindow().getHeight();
+        if (w <= 0 || h <= 0) {
+            LOGGER.warn("Toggle aborted: window too small ({}×{})", w, h);
+            return;
+        }
+        if (urlText == null || urlText.isEmpty() || urlText.equals("rtmp://live.twitch.tv/app/")) {
+            LOGGER.warn("Toggle aborted: no RTMP URL set in settings");
+            NotificationToast.show("Paste your RTMP URL first", 0xFFFFB74D);
+            return;
+        }
+        if (!Streamer.isUrlAllowed(urlText)) {
+            LOGGER.warn("Toggle aborted: invalid RTMP URL '{}'", urlText);
+            NotificationToast.show("Invalid RTMP URL", 0xFFFF5B6E);
+            return;
+        }
+        if (Streamer.isMissingStreamKey(urlText)) {
+            LOGGER.warn("Toggle aborted: RTMP URL missing stream key: '{}'", urlText);
+            NotificationToast.show("RTMP URL missing stream key — add it from YouTube/Twitch", 0xFFFF5B6E);
+            return;
+        }
+
+        String[] encoders = EncoderProbe.getAvailableEncoders();
+        String enc = encoders[Math.min(encoderIdx, encoders.length - 1)];
+        String[] presets = EncoderProbe.getPresets(enc);
+        String preset = presets[Math.min(presetIdx, presets.length - 1)];
+
+        double sf = Double.parseDouble(SCALES[Math.min(scaleIdx, SCALES.length - 1)].replace("x", ""));
+        String recPath = null;
+        if (recordWhileStreaming) {
+            String dir = System.getProperty("user.home") + "/Videos/";
+            try { new java.io.File(dir).mkdirs(); } catch (Exception ignored) {}
+            recPath = dir + "crest-stream-" + java.time.Instant.now().toString()
+                .replace(":", "-").substring(0, 19) + ".mkv";
+        }
+        LOGGER.info("Starting stream (settings screen) → {}", urlText);
+        boolean useGsr = module.isGsrBackend();
+        if (useGsr) {
+            // recordWhileStreaming is handled by GSR's own replay buffer; pass no file.
+            recPath = null;
+        }
+        Streamer.start(urlText, streamFps, w, h, bitrate, enc, preset,
+            audioEnabled ? audioDeviceText : "none", sf, recPath, useGsr,
+            module.getBitrateMode(), module.getQualityPreset(), micEnabled,
+            module.getFrameRateMode());
+        streaming = true;
+        NotificationToast.show("Stream started (" + enc + " @ " + streamFps + "fps)");
     }
 
     @Override
     public void onClose() { saveAndClose(); }
     @Override
     public boolean isPauseScreen() { return false; }
+
+    @Override
+    public boolean isCapturingText() { return urlFocused || audioFocused; }
 }
