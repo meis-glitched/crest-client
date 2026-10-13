@@ -82,7 +82,8 @@
         "GuiRendererShieldMixin",
         "BackgroundLoadingOverlayMixin",
         "CrestNametagMixin",
-        "ChatWaypointMixin"
+        "ChatWaypointMixin",
+        "CrestRenderChunkMixin"
     ],
     "injectors": {
         "defaultRequire": 1

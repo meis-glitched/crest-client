@@ -30,37 +30,38 @@ public final class CrestRenderNative {
     public static native void nativeDestroy();
     
     /**
-     * Create a new chunk mesh from block data.
+     * Initialize the OpenGL renderer (shaders, etc).
+     * Must be called after OpenGL context is created.
+     * 
+     * @return true if initialization succeeded
+     */
+    public static native boolean nativeInitRenderer();
+    
+    /**
+     * Mesh a chunk and upload to GPU in one call.
      * 
      * @param chunkX chunk X coordinate
      * @param chunkY chunk Y coordinate
      * @param chunkZ chunk Z coordinate
-     * @param blocks block state IDs (16x16x16 = 4096 elements)
-     * @return mesh handle (native pointer)
+     * @param blockData block state IDs (16x16x16 * 2 bytes = 8192 bytes)
+     * @return chunk handle (for drawing/unloading)
      */
-    public static native long nativeMeshChunk(int chunkX, int chunkY, int chunkZ, short[] blocks);
+    public static native long nativeMeshChunk(int chunkX, int chunkY, int chunkZ, byte[] blockData);
     
     /**
-     * Upload a mesh to the GPU.
+     * Draw a chunk.
      * 
-     * @param meshHandle mesh handle from nativeMeshChunk
-     * @return GPU buffer handle (VAO ID)
+     * @param chunkHandle handle from nativeMeshChunk
+     * @param projection projection matrix (64 bytes, 16 floats)
+     * @param view view matrix (64 bytes, 16 floats)
+     * @param model model matrix (64 bytes, 16 floats)
      */
-    public static native int nativeUploadMesh(long meshHandle);
+    public static native void nativeDrawChunk(long chunkHandle, byte[] projection, byte[] view, byte[] model);
     
     /**
-     * Free a mesh.
+     * Unload a chunk from GPU.
      * 
-     * @param meshHandle mesh handle to free
+     * @param chunkHandle handle from nativeMeshChunk
      */
-    public static native void nativeFreeMesh(long meshHandle);
-    
-    /**
-     * Render a chunk.
-     * 
-     * @param vaoId VAO ID from nativeUploadMesh
-     * @param viewMatrix view matrix (16 floats)
-     * @param projMatrix projection matrix (16 floats)
-     */
-    public static native void nativeRenderChunk(int vaoId, float[] viewMatrix, float[] projMatrix);
+    public static native void nativeUnloadChunk(long chunkHandle);
 }

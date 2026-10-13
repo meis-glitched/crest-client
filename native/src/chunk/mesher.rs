@@ -198,7 +198,7 @@ impl ChunkMesher {
     
     /// Add a greedy-meshed quad to the mesh
     fn add_quad(&mut self, u: usize, v: usize, d: usize, width: usize, height: usize, 
-                block: u16, direction: Direction, axis_u: usize, axis_v: usize, axis_d: usize) {
+                _block: u16, direction: Direction, axis_u: usize, axis_v: usize, axis_d: usize) {
         let base_idx = self.mesh.vertices.len() as u32;
         
         let normal = direction.normal();

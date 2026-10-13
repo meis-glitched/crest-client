@@ -1,7 +1,7 @@
-// OpenGL rendering pipeline
-
 pub mod pipeline;
 pub mod gl_context;
+pub mod buffer;
+pub mod shader;
 
 use glam::Mat4;
 

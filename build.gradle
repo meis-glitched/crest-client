@@ -96,6 +96,10 @@ java {
     withSourcesJar()
 }
 
+tasks.named('sourcesJar').configure {
+    dependsOn copyRustNative
+}
+
 processResources {
     inputs.property 'version', version
     filesMatching('fabric.mod.json') { expand 'version': version }
