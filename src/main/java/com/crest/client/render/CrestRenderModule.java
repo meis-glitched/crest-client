@@ -18,7 +18,7 @@ public class CrestRenderModule implements CrestModule {
     private static final CrestLogger LOGGER = LoggerFactory.getLogger("CrestRender");
     
     private final BooleanSetting enabled = new BooleanSetting("Enable CrestRender", 
-        "Use Rust-based renderer (Phase 3 - OpenGL integration)", true);
+        "Use Rust-based renderer (Phase 3 - OpenGL integration)", false);
     
     private boolean initialized = false;
     
