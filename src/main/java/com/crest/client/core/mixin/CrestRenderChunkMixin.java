@@ -111,9 +111,7 @@ public class CrestRenderChunkMixin {
         }
     }
     
-    @Inject(method = "renderLevel", at = @At(value = "INVOKE", 
-        target = "Lnet/minecraft/client/renderer/chunk/SectionCompiler;renderChunkSections(Lnet/minecraft/client/renderer/chunk/ChunkSectionsToRender;Lnet/minecraft/client/renderer/RenderType;Lcom/mojang/blaze3d/vertex/PoseStack;DDDLnet/minecraft/client/renderer/state/level/LevelRenderState;)V",
-        ordinal = 0))
+    @Inject(method = "renderLevel", at = @At("RETURN"))
     private void crest$drawChunks(
         com.mojang.blaze3d.resource.GraphicsResourceAllocator allocator,
         net.minecraft.client.DeltaTracker delta,

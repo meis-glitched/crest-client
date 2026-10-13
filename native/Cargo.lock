@@ -138,6 +138,7 @@ dependencies = [
  "glam",
  "jni",
  "lazy_static",
+ "libc",
  "log",
  "parking_lot",
  "rayon",

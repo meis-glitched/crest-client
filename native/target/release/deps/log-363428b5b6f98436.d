@@ -1,0 +1,10 @@
+/home/glitcher/crest-client/native/target/release/deps/log-363428b5b6f98436.d: /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/lib.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/macros.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/serde.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/__private_api.rs
+
+/home/glitcher/crest-client/native/target/release/deps/liblog-363428b5b6f98436.rlib: /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/lib.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/macros.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/serde.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/__private_api.rs
+
+/home/glitcher/crest-client/native/target/release/deps/liblog-363428b5b6f98436.rmeta: /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/lib.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/macros.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/serde.rs /home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/__private_api.rs
+
+/home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/lib.rs:
+/home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/macros.rs:
+/home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/serde.rs:
+/home/glitcher/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/log-0.4.34/src/__private_api.rs:

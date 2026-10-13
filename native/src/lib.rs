@@ -81,6 +81,27 @@ pub extern "system" fn Java_com_crest_client_render_CrestRenderNative_nativeInit
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
+    gl::load_with(|s| {
+        let c_str = std::ffi::CString::new(s).unwrap();
+        unsafe {
+            let lib = libc::dlopen(std::ptr::null(), libc::RTLD_LAZY | libc::RTLD_LOCAL);
+            let func_ptr = libc::dlsym(lib, c_str.as_ptr());
+            if !func_ptr.is_null() {
+                return func_ptr as *const _;
+            }
+            
+            let gl_lib = libc::dlopen(b"libGL.so.1\0".as_ptr() as *const _, libc::RTLD_LAZY);
+            if !gl_lib.is_null() {
+                let func = libc::dlsym(gl_lib, c_str.as_ptr());
+                if !func.is_null() {
+                    return func as *const _;
+                }
+            }
+            
+            std::ptr::null()
+        }
+    });
+    
     let mut state = RENDER_STATE.lock();
     
     match create_chunk_shader() {
