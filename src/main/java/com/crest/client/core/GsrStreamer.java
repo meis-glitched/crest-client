@@ -169,8 +169,7 @@ public class GsrStreamer {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        if (streaming.get()) {
-            streaming.set(false);
+        if (streaming.compareAndSet(true, false)) {
             lastCaptureFps = 0;
             Streamer.setLastError("gpu-screen-recorder exited unexpectedly");
             try { NotificationToast.show("Stream dropped — gpu-screen-recorder exited", 0xFFFF5B6E); }
