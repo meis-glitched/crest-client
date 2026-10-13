@@ -115,3 +115,51 @@ test {
         exceptionFormat "full"
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CrestRender (Reticulum) - Rust Native Renderer Build Tasks
+// ═══════════════════════════════════════════════════════════════════════════
+
+task buildRustNative(type: Exec) {
+    description = 'Builds the CrestRender Rust native library'
+    group = 'crestrender'
+    workingDir 'native'
+    
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    commandLine = isWindows 
+        ? ['cmd', '/c', 'cargo', 'build', '--release']
+        : ['cargo', 'build', '--release']
+    
+    // Only rebuild if Rust sources changed
+    inputs.dir('native/src')
+    inputs.file('native/Cargo.toml')
+    outputs.file('native/target/release/libcrestrender.so')
+}
+
+task copyRustNative(type: Copy, dependsOn: buildRustNative) {
+    description = 'Copies CrestRender native library to resources'
+    group = 'crestrender'
+    
+    from 'native/target/release/libcrestrender.so'
+    into 'src/main/resources/natives/linux/x86_64/'
+    
+    doLast {
+        logger.lifecycle("✓ CrestRender native library copied to resources")
+    }
+}
+
+// Hook into processResources so native lib is always bundled
+processResources.dependsOn copyRustNative
+
+task cleanRustNative(type: Exec) {
+    description = 'Cleans CrestRender Rust build artifacts'
+    group = 'crestrender'
+    workingDir 'native'
+    
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    commandLine = isWindows 
+        ? ['cmd', '/c', 'cargo', 'clean']
+        : ['cargo', 'clean']
+}
+
+clean.dependsOn cleanRustNative

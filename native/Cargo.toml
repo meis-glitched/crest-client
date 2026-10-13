@@ -1,6 +1,28 @@
 [package]
 name = "crestrender"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Meisglitched403"]
+
+[lib]
+name = "crestrender"
+crate-type = ["cdylib"]
 
 [dependencies]
+jni = "0.21"
+gl = "0.14"
+rayon = "1.10"
+parking_lot = "0.12"
+crossbeam = "0.8"
+glam = "0.29"
+ahash = "0.8"
+bytemuck = "1.14"
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -92,6 +92,11 @@ public class CrestClient implements ClientModInitializer {
         CrestModules.register(new WhoamiModule());
         CrestModules.register(new ChatAnimationModule());
         CrestModules.register(new AppleSkinModule());
+        
+        // ═══════════════════════════════════════════════════════════════
+        // CrestRender - Reticulum Renderer (Rust-based Sodium replacement)
+        // ═══════════════════════════════════════════════════════════════
+        CrestModules.register(new com.crest.client.render.CrestRenderModule());
 
         CrestModules.register(new FastRightClickModule());
         CrestModules.register(new BlockLodModule());
